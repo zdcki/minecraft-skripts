@@ -1,0 +1,119 @@
+function buyFood(p: player, cmd: number, price: number, name: string):
+    set {_u} to uuid of {_p}
+    
+    # ДЕБАГ 1: Проверка запуска
+    #send "&7[Debug] Функция вызвана. Предмет: %{_name}%" to {_p}
+    
+    if {jfood_amount::%{_u}%} is not set:
+        set {jfood_amount::%{_u}%} to 1
+    
+    set {_amount} to {jfood_amount::%{_u}%}
+    set {_total_price} to {_price} * {_amount}
+    set {_bal} to {_p}'s balance
+    
+    # ДЕБАГ 2: Проверка цифр
+    #send "&7[Debug] Баланс: %{_bal}% | Нужно: %{_total_price}% | Кол-во: %{_amount}%" to {_p}
+    
+    if {_bal} >= {_total_price}:
+        #send "&7[Debug] Денег хватает, проверяем место..." to {_p}
+        
+        if {_p} has enough space for {_amount} of baked potato:
+            remove {_total_price} from {_p}'s balance
+            
+            set {_item} to baked potato with custom model data {_cmd}
+            set name of {_item} to {_name}
+            give {_p} {_amount} of {_item}
+            
+            send "&x&0&0&f&f&0&0&l▶ &fВы купили &e%{_name}% &f(%{_amount}% шт.)" to {_p}
+            play sound "block.note_block.bell" with volume 0.8 and pitch 1.5 to {_p}
+            
+            # Обновляем меню через функцию, которую мы создали ранее
+            openJFoodFinalStage({_p})
+        else:
+            send "&c[Debug] Нет места в инвентаре!" to {_p}
+    else:
+        send "&c[Debug] Отказ: Баланс меньше цены!" to {_p}
+
+# Вспомогательная команда для тихого обновления без анимации
+command /jfood_internal_refresh:
+    permission: op
+    trigger:
+        set {_p} to player
+        openJFoodFinalStage({_p})
+
+# --- ФИНАЛЬНАЯ СТАДИЯ МЕНЮ (Вынесена в функцию для удобства) ---
+function openJFoodFinalStage(p: player):
+    set {_u} to uuid of {_p}
+    if {jfood_amount::%{_u}%} is not set:
+        set {jfood_amount::%{_u}%} to 1
+    set {_amt} to {jfood_amount::%{_u}%}
+
+    create a new gui with virtual chest inventory with 5 rows named "&x&0&0&0&0&0&0&l▶ &x&2&e&2&e&2&eЯпонская Кухня":
+        make gui slot (integers from 0 to 44) with black stained glass pane named " " without entire tooltip
+        set {_border::*} to 0,1,2,3,4,5,6,7,8,9,17,18,26,27,35,44,43,42,41,40,39,38,37
+        make gui slot {_border::*} with gray stained glass pane named " " without entire tooltip
+
+        set {_list::*} to "65300|15|&x&f&f&8&c&0&0Данго|&x&a&b&a&b&a&bСладкие рисовые шарики", "65301|30|&x&f&f&8&c&0&0Гёдза|&x&a&b&a&b&a&bЯпонские пельмени", "65302|45|&x&f&f&8&c&0&0Гюдон|&x&a&b&a&b&a&bМясо с рисом", "65303|40|&x&f&f&8&c&0&0Карри|&x&a&b&a&b&a&bПряное японское карри", "65304|35|&x&f&f&8&c&0&0Карааге|&x&a&b&a&b&a&bКурица во фритюре", "65305|20|&x&f&f&8&c&0&0Мелонпан|&x&a&b&a&b&a&bСладкая булочка", "65306|25|&x&f&f&8&c&0&0Моти|&x&a&b&a&b&a&bДесерт из рисового теста", "65307|50|&x&f&f&8&c&0&0Окономияки|&x&a&b&a&b&a&bСытная лепешка", "65308|15|&x&f&f&8&c&0&0Онигири|&x&a&b&a&b&a&bРисовый треугольник", "65309|30|&x&f&f&8&c&0&0Нигири|&x&a&b&a&b&a&bСуши с лососем", "65310|60|&x&f&f&8&c&0&0Сябу-сябу|&x&a&b&a&b&a&bТонкое мясо в бульоне", "65311|45|&x&f&f&8&c&0&0Суши|&x&a&b&a&b&a&bКлассический ролл", "65312|35|&x&f&f&8&c&0&0Такояки|&x&a&b&a&b&a&bШарики с осьминогом", "65313|48|&x&f&f&8&c&0&0Тонкацу|&x&a&b&a&b&a&bСвиная отбивная", "65314|28|&x&f&f&8&c&0&0Якитори|&x&a&b&a&b&a&bШашлычки из курицы"
+        set {_item_slots::*} to 11, 12, 13, 14, 15, 20, 21, 22, 23, 24, 29, 30, 31, 32, 33
+        
+        loop {_list::*}:
+            set {_s::*} to loop-value split at "|"
+            set {_c} to {_s::1} parsed as number
+            set {_pr} to {_s::2} parsed as number
+            set {_n} to {_s::3}
+            set {_desc} to {_s::4}
+            set {_sl} to {_item_slots::%loop-index%}
+            set {_total} to {_pr} * {_amt}
+            
+            make gui slot {_sl} with baked potato with custom model data {_c} named "%{_n}%" with lore "" and "%{_desc}%" and "" and "&fВыбрано: &e%{_amt}% шт." and "&fИтоговая цена: &e%{_total}%¥" and "" and "&eЛКМ &7▶ Купить" and "&eПКМ &7▶ Кол-во":
+                if gui click type is left mouse button:
+                    buyFood({_p}, {_c}, {_pr}, "%{_n}%")
+                
+                if gui click type is right mouse button:
+                    # Логика цикличного переключения по твоему списку: 1, 4, 6, 16, 24, 32, 64
+                    if {jfood_amount::%{_u}%} is 1:
+                        set {jfood_amount::%{_u}%} to 4
+                    else if {jfood_amount::%{_u}%} is 4:
+                        set {jfood_amount::%{_u}%} to 6
+                    else if {jfood_amount::%{_u}%} is 6:
+                        set {jfood_amount::%{_u}%} to 16
+                    else if {jfood_amount::%{_u}%} is 16:
+                        set {jfood_amount::%{_u}%} to 24
+                    else if {jfood_amount::%{_u}%} is 24:
+                        set {jfood_amount::%{_u}%} to 32
+                    else if {jfood_amount::%{_u}%} is 32:
+                        set {jfood_amount::%{_u}%} to 64
+                    else:
+                        set {jfood_amount::%{_u}%} to 1 # Возвращаемся в начало
+                    
+                    play sound "ui.button.click" with volume 0.5 and pitch 2 to {_p}
+                    openJFoodFinalStage({_p}) # Обновляем меню
+
+        make gui slot 40 with charcoal named "&x&f&f&f&f&0&0&lИНФОРМАЦИЯ" with lore "&fВаш баланс: &e%{_p}'s balance%¥" with custom model data 10027
+        make gui slot 36 with paper named "&cНазад" with custom model data 10167:
+            close {_p}'s inventory
+
+    open last gui to {_p}
+
+# --- ГЛАВНАЯ КОМАНДА С АНИМАЦИЕЙ ---
+command /jfood:
+    trigger:
+        set {_p} to player
+        set {jfood_amount::%uuid of {_p}%} to 1 # Сброс при новом открытии
+        
+        # ЭТАП 1
+        create a new gui with virtual chest inventory with 1 row named "&x&3&3&3&3&3&3. . .":
+            make gui slot (integers from 0 to 8) with gray stained glass pane named " " without entire tooltip
+        open last gui to {_p}
+        play sound "block.iron_trapdoor.open" with volume 0.5 and pitch 2 to {_p}
+        wait 2 ticks
+        
+        # ЭТАП 2
+        create a new gui with virtual chest inventory with 3 rows named "&x&4&4&4&4&4&4. . . . . .":
+            make gui slot (integers from 0 to 26) with black stained glass pane named " " without entire tooltip
+        open last gui to {_p}
+        play sound "block.iron_trapdoor.open" with volume 0.5 and pitch 1.5 to {_p}
+        wait 2 ticks
+
+        # ЭТАП 3: Финал
+        openJFoodFinalStage({_p})
