@@ -1,0 +1,220 @@
+options:
+    wrong_key: &cЭтот ключ не подходит к этой комнате!
+    no_key: &cЭта дверь заперта. Нужен ключ!
+    key_material: trial key
+    key_pattern: Ключ от %{_need}% комнаты
+    room_price: 5000
+    sell_price: 2500 # Цена возврата при продаже (50%)
+    world: world # Название твоего мира
+    gui_name: &0&l🏨 ГРАНД-ОТЕЛЬ
+    bg_pane: gray stained glass pane named " "
+
+
+function playHotelSound(p: player, t: text):
+    if {_t} is "open":
+        play sound "block.barrel.open" with volume 0.5 and pitch 1.2 to {_p}
+    else if {_t} is "buy":
+        play sound "entity.player.levelup" with volume 0.6 and pitch 1.5 to {_p}
+    else if {_t} is "fail":
+        play sound "entity.villager.no" with volume 0.8 and pitch 1 to {_p}
+
+
+# Функция выдачи ключа
+function giveHotelKey(p: player, room: text):
+    set {_k} to 1 of {@key_material} named "&cКлюч от &f%{_room}% &cкомнаты"
+    set lore of {_k} to "&7Этот ключ открывает||&7дверь комнаты №%{_room}%"
+    give {_k} to {_p}
+
+# --- ЛОГИКА ДВЕРЕЙ ---
+on right click on iron door:
+    if player is sneaking:
+        stop
+    set {_loc} to "%floor(x-pos of event-block)%,%floor(y-pos of event-block)%,%floor(z-pos of event-block)%"
+    
+    # Дебаг
+    if player's tool is stick:
+        send "&e[Debug] Координаты: &b%{_loc}%" to player
+        stop
+
+    # Список комнат (твой список)
+    set {_need} to ""
+    if {_loc} is "86,72,112" or "86,71,112":
+        set {_need} to "10"
+    else if {_loc} is "79,72,112" or "79,71,112":
+        set {_need} to "11"
+    else if {_loc} is "72,72,112" or "72,71,112":
+        set {_need} to "12"
+    else if {_loc} is "65,72,112" or "65,71,112":
+        set {_need} to "13"
+    else if {_loc} is "86,75,112" or "86,76,112":
+        set {_need} to "20"
+    else if {_loc} is "79,75,112" or "79,76,112":
+        set {_need} to "21"
+    else if {_loc} is "72,75,112" or "72,76,112":
+        set {_need} to "22"
+    else if {_loc} is "65,75,112" or "65,76,112":
+        set {_need} to "23"
+    else if {_loc} is "86,79,112" or "86,80,112":
+        set {_need} to "30"
+    else if {_loc} is "79,79,112" or "79,80,112":
+        set {_need} to "31"
+    else if {_loc} is "72,79,112" or "72,80,112":
+        set {_need} to "32"
+    else if {_loc} is "65,79,112" or "65,80,112":
+        set {_need} to "33"
+
+    if {_need} is not "":
+        cancel event
+        if player's tool is {@key_material}:
+            set {_name} to uncolored name of player's tool
+            if {_name} is "{@key_pattern}":
+                send "&aВы открыли комнату №%{_need}%" to player
+                open event-block
+                play sound "block.iron_door.open" to player
+                wait 3 seconds
+                close event-block
+                play sound "block.iron_door.close" to player
+            else:
+                send "{@wrong_key}" to player
+        else:
+            send "{@no_key}" to player
+
+command /hotel:
+    trigger:
+        play sound "block.barrel.open" with volume 0.5 and pitch 1.2 to player
+        
+        # 1. Создаем и открываем основу GUI
+        create a gui with virtual chest inventory with 5 rows named "{@gui_name}":
+            loop integers from 0 to 44:
+                set {_s} to loop-integer
+                if {_s} <= 8:
+                    set slot {_s} of gui to {@bg_pane}
+                else if {_s} >= 36:
+                    set slot {_s} of gui to {@bg_pane}
+                else:
+                    set {_mod} to mod({_s}, 9)
+                    if {_mod} is 0 or 8:
+                        set slot {_s} of gui to {@bg_pane}
+            set slot 40 of gui to sunflower named "&e&lВАШ КОШЕЛЕК" with lore "&7На счету: &a%player's balance%", "", "&fНажмите, чтобы обновить"
+        
+        open last created gui to player
+        
+        # 2. Анимация появления предметов
+        set {_rooms::*} to "10", "11", "12", "13", "20", "21", "22", "23", "30", "31", "32" and "33"
+        set {_slots::*} to 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23
+        
+        set {_n} to 1
+        loop {_rooms::*}:
+            if name of player's current inventory is not "{@gui_name}":
+                stop
+                
+            set {_room} to loop-value
+            set {_slot} to {_slots::%{_n}%}
+            
+            edit player's gui:
+                # ПРОВЕРКА: Если игрок — ВЛАДЕЛЕЦ
+                if {hotel::owner::%{_room}%} is player:
+                    make gui {_slot} with emerald named "&a&lВАША КОМНАТА №%{_room}%" with lore "&7Статус: &bВы владелец", "", "&e▶ Кликни, чтобы продать", "&7Цена возврата: &c¥{@sell_price}", "", "&8(Нужно иметь ключ в инвентаре)":
+                        
+                        # Логика поиска ключа в инвентаре
+                        set {_needed_key} to 1 of {@key_material} named "&cКлюч от &f%{_room}% &cкомнаты"
+                        if player has {_needed_key}:
+                            remove {_needed_key} from player's inventory
+                            delete {hotel::owner::%{_room}%}
+                            execute console command "rg removemember -w {@world} hotel_%{_room}% %player%"
+                            add {@sell_price} to player's balance
+                            play sound "entity.experience_orb.pickup" to player
+                            send "&f[Отель] &aВы продали комнату №%{_room}% за &e¥{@sell_price}"
+                            close player's inventory
+                        else:
+                            play sound "entity.villager.no" to player
+                            send "&cУ вас нет ключа от этой комнаты в инвентаре!"
+                
+                # ПРОВЕРКА: Если владелец КТО-ТО ДРУГОЙ
+                else if {hotel::owner::%{_room}%} is set:
+                    make gui {_slot} with iron door named "&c&lНОМЕР №%{_room}%" with lore "&7Статус: &c&lЗАНЯТ", "&7Владелец: &e%{hotel::owner::%{_room}%}%", "", "&8Этот номер временно недоступен."
+                
+                # ПРОВЕРКА: Если СВОБОДНО
+                else:
+                    make gui {_slot} with {@key_material} named "&a&lНОМЕР №%{_room}%" with lore "&7Статус: &aСВОБОДЕН", "&7Цена: &6¥{@room_price}", "", "&e▶ Кликни, чтобы заселиться!":
+                        if player's balance >= {@room_price}:
+                            remove {@room_price} from player's balance
+                            set {hotel::owner::%{_room}%} to player
+                            execute console command "rg addmember -w {@world} hotel_%{_room}% %player%"
+                            giveHotelKey(player, {_room})
+                            play sound "entity.player.levelup" with volume 0.6 and pitch 1.5 to player
+                            send "&f[Отель] &aВы арендовали номер №%{_room}%!"
+                            close player's inventory
+                        else:
+                            play sound "entity.villager.no" to player
+                            send "&cНедостаточно денег!"
+            
+            add 1 to {_n}
+            play sound "block.note_block.hat" with volume 0.2 and pitch 1.5 to player
+            wait 1 tick
+
+on inventory click:
+    if name of event-inventory is "&0Аренда комнат":
+        cancel event
+        if event-item is {@key_material}:
+            set {_room} to uncolored name of event-item
+            replace "Комната №" with "" in {_room}
+            
+            # Проверка занятости на всякий случай
+            if {hotel::owner::%{_room}%} is set:
+                send "&cЭта комната уже куплена!"
+                stop
+
+            if player's balance >= {@room_price}:
+                remove {@room_price} from player's balance
+                set {hotel::owner::%{_room}%} to player
+                execute console command "rg addmember -w {@world} hotel_%{_room}% %player%"
+                giveHotelKey(player, {_room})
+                send "&f[Отель] &aВы купили комнату №%{_room}%!"
+                close player's inventory
+            else:
+                send "&cУ вас недостаточно денег!"
+
+# --- КОМАНДА ПРОДАЖИ ---
+# --- КОМАНДА ПРОДАЖИ ---
+command /sellroom <text>:
+    description: Продать свою комнату (Например: /sellroom 10)
+    trigger:
+        # 1. Проверяем, является ли игрок владельцем в базе данных
+        if {hotel::owner::%arg-1%} is not player:
+            send "&cВы не являетесь владельцем комнаты №%arg-1%!"
+            stop
+
+        # 2. Проверяем предмет в руке
+        set {_item} to player's tool
+        
+        # Проверка на тип материала
+        if type of {_item} is not {@key_material}:
+            send "&cЧтобы продать комнату, нужно держать её ключ в руке!" to player
+            stop
+            
+        # Проверка названия ключа (используем твой паттерн)
+        set {_name} to uncolored name of {_item}
+        set {_needed_name} to "{@key_pattern}"
+        replace "%{_need}%" with arg-1 in {_needed_name}
+        
+        if {_name} is not {_needed_name}:
+            send "&cЭтот ключ не подходит для продажи комнаты №%arg-1%!" to player
+            stop
+
+        # 3. Логика продажи, если проверки пройдены
+        remove 1 of {_item} from player's inventory # Забираем ключ
+        delete {hotel::owner::%arg-1%}
+        execute console command "rg removemember -w {@world} hotel_%arg-1% %player%"
+        
+        add {@sell_price} to player's balance
+        send "&f[Отель] &aВы успешно вернули ключ и продали комнату №%arg-1%!"
+        send "&aНа ваш баланс зачислено: &e¥{@sell_price}"
+
+# Админская команда для сброса (если надо очистить комнату вручную)
+command /hotelreset <text>:
+    permission: op
+    trigger:
+        delete {hotel::owner::%arg-1%}
+        execute console command "rg removemember -w {@world} hotel_%arg-1% --all"
+        send "&7Комната %arg-1% сброшена."
