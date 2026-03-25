@@ -1,0 +1,809 @@
+# --- НАСТРОЙКИ ТОТЕМОВ (ID для Custom Model Data) ---
+options:
+    # Твои старые
+    berserk_id: 1001
+    turtle_id: 1002
+    # Новые (15 штук)
+    phantom_id: 1003
+    vampire_id: 1004
+    miner_id: 1005
+    thief_id: 1006
+    paladin_id: 1007
+    storm_id: 1008
+    diver_id: 1009
+    escape_id: 1010
+    farmer_id: 1011
+    reaper_id: 1012
+    tank_id: 1013
+    inferno_id: 1014
+    medic_id: 1015
+    frost_id: 1016
+    luck_id: 1017
+
+    scout_id: 1018
+    gravity_id: 1019
+    alchemist_id: 1020
+    blacksmith_id: 1021
+    archangel_id: 1022
+    void_id: 1023
+    ninja_id: 1024
+    phoenix_id: 1025
+    ocean_king_id: 1026
+    berserk_v2_id: 1027
+    trader_id: 1028
+    ghost_id: 1029
+    dragon_id: 1030
+    hacker_id: 1031
+    titan_id: 1032
+
+    god_id: 1033
+    reaper_v2_id: 1034
+    anti_trap_id: 1035
+    rich_id: 1036
+    overlord_id: 1037
+    
+on damage of player:
+    if attacker is a player:
+        set metadata value "last_attacker" of victim to attacker
+    
+# --- ЛОГИКА АКТИВАЦИИ ---
+on resurrect:
+    # 1. Проверяем правую руку
+    set {_item} to player's tool
+    set {_cmd} to custom model data of {_item}
+    
+    # Если в правой руке пусто или ID не наш, проверяем левую
+    if {_cmd} is not set:
+        set {_item} to player's offhand tool
+        set {_cmd} to custom model data of {_item}
+    else if {_cmd} < 1001:
+        set {_item} to player's offhand tool
+        set {_cmd} to custom model data of {_item}
+    else if {_cmd} > 1037:
+        set {_item} to player's offhand tool
+        set {_cmd} to custom model data of {_item}
+        
+    # 2. Финальная проверка: если после всех манипуляций ID всё еще не подходит - стоп
+    if {_cmd} is not set:
+        stop
+    if {_cmd} < 1001:
+        stop
+    if {_cmd} > 1037:
+        stop
+
+    # Если дошли сюда, значит тотем наш.
+    wait 2 ticks
+
+    # 1. ТОТЕМ БЕРСЕРКА
+    if {_cmd} is {@berserk_id}:
+        apply strength 2 to player for 60 seconds
+        apply haste 2 to player for 60 seconds
+        send "&6&l⚡ &fЯрость берсерка пробуждена!" to player
+        play sound "entity.ender_dragon.growl" with pitch 1.5 to player
+
+    # 2. ТОТЕМ ЧЕРЕПАХИ
+    else if {_cmd} is {@turtle_id}:
+        apply resistance 3 to player for 45 seconds
+        apply slowness 2 to player for 20 seconds
+        send "&a&l🐢 &fПанцирь черепахи защитил вас!" to player
+        play sound "item.armor.equip_netherite" with pitch 0.5 to player
+
+    # 3. ТОТЕМ ФАНТОМА (Невидимость и Полет)
+    else if {_cmd} is {@phantom_id}:
+        apply invisibility 1 to player for 30 seconds
+        apply speed 3 to player for 30 seconds
+        apply jump boost 3 to player for 30 seconds
+        send "&f&l👻 &fВы стали бесплотным духом..." to player
+        play sound "entity.phantom.ambient" to player
+
+    # 4. ТОТЕМ ВАМПИРА (Восстановление за счет урона)
+    else if {_cmd} is {@vampire_id}:
+        apply health boost 4 to player for 2 minutes
+        apply regeneration 3 to player for 15 seconds
+        send "&c&l🩸 &fЖажда крови утолена!" to player
+        play sound "entity.bat.ambient" to player
+
+    # 5. ТОТЕМ ШАХТЕРА
+    else if {_cmd} is {@miner_id}:
+        apply haste 3 to player for 5 minutes
+        apply night vision 1 to player for 5 minutes
+        send "&e&l⚒ &fСила недр наполняет ваши инструменты!" to player
+        play sound "block.anvil.land" with pitch 1.5 to player
+
+    # 6. ТОТЕМ ВОРА (Ослепление врагов вокруг)
+    else if {_cmd} is {@thief_id}:
+        loop players in radius 7 around player:
+            apply blindness 1 to loop-player for 5 seconds
+        apply speed 4 to player for 10 seconds
+        send "&7&l👤 &fВы скрылись в тенях, ослепив врагов!" to player
+        play sound "entity.illusioner.cast_spell" to player
+
+    # 7. ТОТЕМ ПАЛАДИНА (Мощное сияние)
+    else if {_cmd} is {@paladin_id}:
+        apply resistance 2 to player for 1 minute
+        apply absorption 5 to player for 1 minute
+        apply glowing 1 to player for 20 seconds
+        send "&e&l✨ &fСвет небес оберегает праведников!" to player
+        play sound "block.beacon.activate" to player
+
+    # 8. ТОТЕМ ШТОРМА (Удар молнии в обидчика)
+    else if {_cmd} is {@storm_id}:
+        strike lightning at player's location
+        apply speed 2 to player for 40 seconds
+        send "&b&l⚡ &fЭнергия бури течет в ваших жилах!" to player
+
+    # 9. ТОТЕМ НЫРЯЛЬЩИКА
+    else if {_cmd} is {@diver_id}:
+        apply water breathing 1 to player for 10 minutes
+        apply dolphin's grace 1 to player for 2 minutes
+        apply conduit power 1 to player for 2 minutes
+        send "&3&l🌊 &fОкеан признал вас своим!" to player
+
+    # 10. ТОТЕМ ПОБЕГА (Телепорт на спавн/варп)
+    else if {_cmd} is {@escape_id}:
+        send "&d&l🌀 &fЭкстренная эвакуация!" to player
+        execute console command "warps ambar %player%"
+        play sound "entity.enderman.teleport" to player
+
+    # 11. ТОТЕМ ФЕРМЕРА (Наполнение сытостью)
+    else if {_cmd} is {@farmer_id}:
+        apply saturation 5 to player for 30 seconds
+        apply luck 2 to player for 5 minutes
+        send "&6&l🌾 &fЗемля дает вам силы продолжать!" to player
+
+    # 12. ТОТЕМ ЖНЕЦА (Иссушение врагов)
+    else if {_cmd} is {@reaper_id}:
+        loop entities in radius 10 around player:
+            if loop-entity is not player:
+                apply wither 3 to loop-entity for 10 seconds
+        send "&8&l💀 &fСмерть прошла совсем рядом..." to player
+        play sound "entity.wither.spawn" with pitch 2 to player
+
+    # 13. ТОТЕМ ТАНКА (Огромное поглощение)
+    else if {_cmd} is {@tank_id}:
+        apply absorption 10 to player for 30 seconds
+        apply resistance 4 to player for 15 seconds
+        send "&8&l🛡 &fВы стали живой крепостью!" to player
+        play sound "item.shield.block" to player
+
+    # 14. ТОТЕМ ИНФЕРНО (Огненный взрыв)
+    else if {_cmd} is {@inferno_id}:
+        apply fire resistance 1 to player for 5 minutes
+        loop entities in radius 5 around player:
+            ignite loop-entity for 10 seconds
+        send "&c&l🔥 &fПламя преисподней поглотило ваш страх!" to player
+
+    # 15. ТОТЕМ МЕДИКА (Лечение союзников рядом)
+    else if {_cmd} is {@medic_id}:
+        loop players in radius 10 around player:
+            apply regeneration 4 to loop-player for 10 seconds
+            apply instant health 1 to loop-player
+        send "&d&l💖 &fВаша жертва исцелила окружающих!" to player
+
+    # 16. ТОТЕМ МОРОЗА (Заморозка врагов)
+    else if {_cmd} is {@frost_id}:
+        loop entities in radius 8 around player:
+            if loop-entity is not player:
+                apply slowness 5 to loop-entity for 15 seconds
+        send "&b&l❄ &fСердце льда сковало ваших врагов!" to player
+
+    # 17. ТОТЕМ УДАЧИ (Редкие эффекты)
+    else if {_cmd} is {@luck_id}:
+        apply luck 5 to player for 10 minutes
+        apply hero of the village 1 to player for 10 minutes
+        send "&2&l🍀 &fСегодня ваш счастливый день!" to player
+
+    else if {_cmd} is {@scout_id}:
+        apply speed 5 to player for 20 seconds
+        loop players in radius 30 around player:
+            apply glowing 1 to loop-player for 15 seconds
+        send "&f&l👟 &fВы ускорились и обнаружили врагов!"
+
+    # 19. ТОТЕМ ГРАВИТАЦИИ (Левитация врагов)
+    else if {_cmd} is {@gravity_id}:
+        loop entities in radius 10 around player:
+            if loop-entity is not player:
+                apply levitation 2 to loop-entity for 5 seconds
+        send "&9&l🌌 &fГравитация сошла с ума!"
+
+    # 20. ТОТЕМ АЛХИМИКА (Случайные баффы)
+    else if {_cmd} is {@alchemist_id}:
+        apply strength 1 to player for 30 seconds
+        apply speed 2 to player for 30 seconds
+        apply resistance 2 to player for 30 seconds
+        send "&5&l🧪 &fНепредсказуемая смесь подействовала!"
+
+    # 21. ТОТЕМ КУЗНЕЦА (Починка брони)
+    else if {_cmd} is {@blacksmith_id}:
+        repair player's armor
+        apply resistance 3 to player for 20 seconds
+        send "&6&l🔨 &fВаша броня была мгновенно восстановлена!"
+
+    # 22. ТОТЕМ АРХАНГЕЛА (Максимальный взлет)
+    else if {_cmd} is {@archangel_id}:
+        apply slow falling 1 to player for 30 seconds
+        push player upwards with force 2
+        send "&e&l👼 &fВы вознеслись над полем боя!"
+
+    # 23. ТОТЕМ ПУСТОТЫ (Удаление эффектов у врагов)
+    else if {_cmd} is {@void_id}:
+        loop players in radius 8 around player:
+            clear loop-player's potion effects
+        send "&0&l⬛ &fПустота поглотила магию врагов!"
+
+    # 24. ТОТЕМ НИНДЗЯ (Дымовая завеса)
+    else if {_cmd} is {@ninja_id}:
+        apply speed 4 to player for 10 seconds
+        apply invisibility 1 to player for 15 seconds
+        play large smoke at player
+        send "&8&l💨 &fИсчезновение..."
+
+    # 25. ТОТЕМ ФЕНИКСА (Бессмертие на 5 сек)
+    else if {_cmd} is {@phoenix_id}:
+        apply resistance 5 to player for 6 seconds
+        apply fire resistance 1 to player for 1 minute
+        send "&6&l🔥 &fВы возродились из пепла!"
+
+    # 26. ТОТЕМ ЦАРЯ МОРЕЙ (Затопление)
+    else if {_cmd} is {@ocean_king_id}:
+        loop entities in radius 6 around player:
+            set block at loop-entity to water
+        wait 3 seconds
+        loop blocks in radius 6 around player:
+            if loop-block is water:
+                set loop-block to air
+
+    # 27. ТОТЕМ КРУШИТЕЛЯ (Урон по области)
+    else if {_cmd} is {@berserk_v2_id}:
+        damage entities in radius 7 around player by 5 hearts
+        send "&4&l💥 &fЗемля содрогнулась!"
+
+    # 28. ТОТЕМ ТОРГОВЦА (Скидки/Рынок)
+    else if {_cmd} is {@trader_id}:
+        apply hero of the village 5 to player for 5 minutes
+        send "&a&l💰 &fЛучшие предложения только для вас!"
+
+    # 29. ТОТЕМ ПРИЗРАКА (Проход сквозь стены)
+    else if {_cmd} is {@ghost_id}:
+        set player's flight mode to true
+        wait 10 seconds
+        set player's flight mode to false
+        send "&7&l👻 &fПризрачная форма активна 10 сек!"
+
+    # 30. ТОТЕМ ДРАКОНА (Огненное дыхание)
+    else if {_cmd} is {@dragon_id}:
+        make player shoot dragon fireball
+        send "&5&l🐲 &fГнев Дракона!"
+
+# 31. ТОТЕМ ХАКЕРА (Остановка времени)
+    else if {_cmd} is {@hacker_id}:
+        # Создаем список, чтобы точно знать, кого мы заморозили
+        add player to {_frozen_list::*}
+        execute console command "simpleplayerfreeze:freeze %player%"
+        
+        # Замораживаем всех игроков вокруг и добавляем в список
+        loop players in radius 10 around player:
+            if loop-player is not player:
+                add loop-player to {_frozen_list::*}
+                execute console command "simpleplayerfreeze:freeze %loop-player%"
+        
+        send "&b&l💻 &fСистема взломана. Время остановлено на 8 секунд!" to player
+        
+        # Ждем 8 секунд
+        wait 8 seconds
+        
+        # Размораживаем строго тех, кто попал в наш список
+        loop {_frozen_list::*}:
+            # ВНИМАНИЕ: Проверь, как в SPF пишется unfreeze. 
+            # Если команда /unfreeze, то пишем так:
+            execute console command "simpleplayerfreeze:unfreeze %loop-value%"
+        
+        send "&a&l🔓 &fВремя снова запущено!" to player
+
+    # 32. ТОТЕМ ТИТАНА (Огромный рост и ХП)
+    else if {_cmd} is {@titan_id}:
+        apply health boost 10 to player for 3 minutes
+        apply strength 3 to player for 1 minute
+        send "&6&l🛡 &fВы обрели мощь ТИТАНА!"
+        
+# 33. ТОТЕМ БОГА (Полное бессмертие и очистка)
+    else if {_cmd} is {@god_id}:
+        clear player's potion effects
+        apply resistance 5 to player for 15 seconds
+        apply regeneration 5 to player for 10 seconds
+        apply speed 3 to player for 20 seconds
+        send "&e&l⭐ &fБОЖЕСТВЕННОЕ ВМЕШАТЕЛЬСТВО! Вы неуязвимы 15 секунд." to player
+        play sound "ui.toast.challenge_complete" to player
+
+    # 34. ТОТЕМ ЖАТВЫ (Кража ХП у всех вокруг)
+    else if {_cmd} is {@reaper_v2_id}:
+        loop players in radius 12 around player:
+            if loop-player is not player:
+                damage loop-player by 4 hearts
+                add 2 to player's health
+                play dragon breath at loop-player
+        send "&4&l💀 &fВы выпили жизнь из окружающих!" to player
+
+    # 35. ТОТЕМ АНТИ-ТРАПЕР (Проход сквозь блоки и откидывание)
+    else if {_cmd} is {@anti_trap_id}:
+        push entities in radius 6 around player backwards with force 3
+        set player's flight mode to true
+        send "&b&l🌀 &fЛовушка уничтожена! У вас 5 секунд, чтобы улететь." to player
+        wait 5 seconds
+        set player's flight mode to false
+
+    # 36. ТОТЕМ МАГНАТА (Сохранение ресурсов и удача)
+    else if {_cmd} is {@rich_id}:
+        apply luck 10 to player for 10 minutes
+        apply haste 5 to player for 3 minutes
+        give player 1 netherite scrap # Маленький бонус
+        send "&6&l💰 &fБогатство само идет в руки!" to player
+
+# 37. ТОТЕМ ОВЕРЛОРДА (Призыв свиты с авто-атакой)
+    else if {_cmd} is {@overlord_id}:
+        # Определяем врага
+        set {_enemy} to metadata value "last_attacker" of player
+        
+        # Спавним 3 големов через цикл
+        loop 3 times:
+            spawn 1 iron golem at player's location
+            set {_golem} to last spawned iron golem
+            
+            # Ставим имя каждому
+            set name of {_golem} to "&6Защитник %player%"
+            
+            # Натравливаем на обидчика, если он онлайн и рядом
+            if {_enemy} is set:
+                set target of {_golem} to {_enemy}
+        
+        apply strength 3 to player for 30 seconds
+        send "&5&l👑 &fАрмия Оверлорда прибыла и атакует вашего обидчика!" to player
+        
+        # Чистим метку через 5 секунд, чтобы не было ошибок
+        wait 5 seconds
+        delete metadata value "last_attacker" of player
+        
+        
+        
+        
+command /givetotem <text> [<player>]:
+    permission: op
+    trigger:
+        set {_target} to arg-2 ? player
+        set {_i} to totem of undying
+        enchant {_i} with unbreaking 1
+        
+        # 1. БЕРСЕРК
+        if arg-1 is "berserk":
+            set name of {_i} to "§x§F§F§2§9§0§0§lТ§x§F§F§2§1§2§5§lо§x§F§F§1§9§4§A§lт§x§F§F§1§0§7§0§lе§x§F§F§0§8§9§5§lм §x§F§F§0§0§B§A§lБ§x§F§F§0§0§B§A§lе§x§F§F§0§0§B§A§lр§x§F§F§0§0§B§A§lс§x§F§F§0§0§B§A§lе§x§F§F§0§0§B§A§lр§x§F§F§0§0§B§A§lк§x§F§F§0§0§B§A§lа"
+            set custom model data of {_i} to {@berserk_id}
+            set lore of {_i} to "&7Ранг: &6&lЛЕГЕНДАРНЫЙ", "", "&6⚡ Способности:", " &8» &cСила II &7(60 сек.)", " &8» &eСпешка II &7(60 сек.)", "", "&4&o«Кровь закипает, разум гаснет...»"
+        
+        # 2. ЧЕРЕПАХА
+        else if arg-1 is "turtle":
+            set name of {_i} to "§x§9§1§F§F§6§2Т§x§8§B§F§1§7§Cо§x§8§5§E§3§9§6в§x§7§F§D§6§B§1и§x§7§8§C§8§C§Bч§x§7§2§B§A§E§5о§x§6§C§A§C§F§Fк §aЧерепахи"
+            set custom model data of {_i} to {@turtle_id}
+            set lore of {_i} to "&7Ранг: &aРедкий", "", "&2🛡 Способности:", " &8» &9Стойкость III &7(45 сек.)", " &8» &7Замедление II &7(20 сек.)", "", "&2&o«Вас не сдвинуть, как вековую скалу.»"
+
+        # 3. ФАНТОМ
+        else if arg-1 is "phantom":
+            set name of {_i} to "&f&lТотем &fФантома"
+            set custom model data of {_i} to {@phantom_id}
+            set lore of {_i} to "&7Ранг: &fМистический", "", "&f👻 Способности:", " &8» &7Невидимость &7(30 сек.)", " &8» &bСкорость III &7(30 сек.)", " &8» &fПрыгучесть III &7(30 сек.)", "", "&7&o«Вы — лишь эхо в ночном тумане.»"
+
+        # 4. ВАМПИР
+        else if arg-1 is "vampire":
+            set name of {_i} to "&4&lТотем &cВампира"
+            set custom model data of {_i} to {@vampire_id}
+            set lore of {_i} to "&7Ранг: &cДревний", "", "&4🩸 Способности:", " &8» &dДоп. ХП &7(2 мин.)", " &8» &cРегенерация III &7(15 сек.)", "", "&c&o«Твоя жизнь — моя жатва.»"
+
+        # 5. ШАХТЕР
+        else if arg-1 is "miner":
+            set name of {_i} to "&e&lТотем &6Шахтера"
+            set custom model data of {_i} to {@miner_id}
+            set lore of {_i} to "&7Ранг: &eОбычный", "", "&6⚒ Способности:", " &8» &eСпешка III &7(5 мин.)", " &8» &bНочное зрение &7(5 мин.)", "", "&8&o«Глубины мира подчиняются упорным.»"
+
+        # 6. ВОР
+        else if arg-1 is "thief":
+            set name of {_i} to "&7&lТотем &8Вора"
+            set custom model data of {_i} to {@thief_id}
+            set lore of {_i} to "&7Ранг: &8Теневой", "", "&8👤 Способности:", " &8» &8Слепота врагам &7(7б.)", " &8» &fСкорость IV &7(10 сек.)", "", "&7&o«Ушел раньше, чем тебя заметили.»"
+
+        # 7. ПАЛАДИН
+        else if arg-1 is "paladin":
+            set name of {_i} to "&e&lТотем &6Паладина"
+            set custom model data of {_i} to {@paladin_id}
+            set lore of {_i} to "&7Ранг: &6Святой", "", "&e✨ Способности:", " &8» &9Стойкость II &7(1 мин.)", " &8» &eПоглощение V &7(1 мин.)", "", "&6&o«Свет не даст тебе погаснуть.»"
+
+        # 8. ШТОРМ
+        else if arg-1 is "storm":
+            set name of {_i} to "&b&lТотем &3Шторма"
+            set custom model data of {_i} to {@storm_id}
+            set lore of {_i} to "&7Ранг: &bСтихийный", "", "&b⚡ Способности:", " &8» &fУдар молнии в обидчика", " &8» &bСкорость II &7(40 сек.)", "", "&3&o«Небеса плачут молниями.»"
+
+        # 9. НЫРЯЛЬЩИК
+        else if arg-1 is "diver":
+            set name of {_i} to "&3&lТотем &bНыряльщика"
+            set custom model data of {_i} to {@diver_id}
+            set lore of {_i} to "&7Ранг: &3Водный", "", "&3🌊 Способности:", " &8» &bДыхание &7(10 мин.)", " &8» &3Грация дельфина &7(2 мин.)", "", "&1&o«Бездна стала твоим домом.»"
+
+        # 10. ПОБЕГ
+        else if arg-1 is "escape":
+            set name of {_i} to "&d&lТотем &5Побега"
+            set custom model data of {_i} to {@escape_id}
+            set lore of {_i} to "&7Ранг: &dМагический", "", "&d🌀 Способности:", " &8» &dТелепортация на базу", " &8» &fЭкстренный разрыв пространства", "", "&5&o«Сегодня не день для твоей смерти.»"
+
+        # 11. ФЕРМЕР
+        else if arg-1 is "farmer":
+            set name of {_i} to "&6&lТотем &eФермера"
+            set custom model data of {_i} to {@farmer_id}
+            set lore of {_i} to "&7Ранг: &eТрудовой", "", "&e🌾 Способности:", " &8» &6Насыщение V &7(30 сек.)", " &8» &2Удача II &7(5 мин.)", "", "&2&o«Земля щедра к своим детям.»"
+
+        # 12. ЖНЕЦ
+        else if arg-1 is "reaper":
+            set name of {_i} to "&8&lТотем &4Жнеца"
+            set custom model data of {_i} to {@reaper_id}
+            set lore of {_i} to "&7Ранг: &4Проклятый", "", "&8💀 Способности:", " &8» &8Иссушение III &7(R: 10б.)", " &8» &4Тьма вокруг", "", "&4&o«Время жатвы пришло.»"
+
+        # 13. ТАНК
+        else if arg-1 is "tank":
+            set name of {_i} to "&8&lТотем &7Танка"
+            set custom model data of {_i} to {@tank_id}
+            set lore of {_i} to "&7Ранг: &8Тяжелый", "", "&8🛡 Способности:", " &8» &eПоглощение X &7(30 сек.)", " &8» &9Стойкость IV &7(15 сек.)", "", "&8&o«Несокрушимый оплот.»"
+
+        # 14. ИНФЕРНО
+        else if arg-1 is "inferno":
+            set name of {_i} to "&c&lТотем &4Инферно"
+            set custom model data of {_i} to {@inferno_id}
+            set lore of {_i} to "&7Ранг: &cОгненный", "", "&c🔥 Способности:", " &8» &cОгнестойкость &7(5 мин.)", " &8» &4Огненный взрыв вокруг", "", "&4&o«Всё сгорит дотла.»"
+
+        # 15. МЕДИК
+        else if arg-1 is "medic":
+            set name of {_i} to "&d&lТотем &fМедика"
+            set custom model data of {_i} to {@medic_id}
+            set lore of {_i} to "&7Ранг: &dМирный", "", "&d💖 Способности:", " &8» &dРегенерация IV &7(союзники)", " &8» &cМгновенное исцеление", "", "&f&o«Твое спасение — их надежда.»"
+
+        # 16. МОРОЗ
+        else if arg-1 is "frost":
+            set name of {_i} to "&b&lТотем &9Ледяного Сердца"
+            set custom model data of {_i} to {@frost_id}
+            set lore of {_i} to "&7Ранг: &bЗамороженный", "", "&b❄ Способности:", " &8» &bЗамедление V &7(врагам)", " &8» &fРадиус: &78 блоков", "", "&b&o«Дыхание севера сковывает кровь.»"
+
+        # 17. УДАЧА
+        else if arg-1 is "luck":
+            set name of {_i} to "&2&lТотем &aЗолотого Клевера"
+            set custom model data of {_i} to {@luck_id}
+            set lore of {_i} to "&7Ранг: &2Мифический", "", "&2🍀 Способности:", " &8» &2Удача V &7(10 мин.)", " &8» &fГерой деревни", "", "&2&o«Судьба сегодня на твоей стороне.»"
+
+        # 18. СКАУТ
+        else if arg-1 is "scout":
+            set name of {_i} to "&f&lТотем &aСкаута"
+            set custom model data of {_i} to {@scout_id}
+            set lore of {_i} to "&7Ранг: &fРазведчик", "", "&a👟 Способности:", " &8» &fСкорость V &7(20 сек.)", " &8» &eПодсветка врагов &7(30б.)", "", "&a&o«От моих глаз не скрыться.»"
+
+        # 19. ГРАВИТАЦИЯ
+        else if arg-1 is "gravity":
+            set name of {_i} to "&9&lТотем &1Гравитации"
+            set custom model data of {_i} to {@gravity_id}
+            set lore of {_i} to "&7Ранг: &9Космический", "", "&9🌌 Способности:", " &8» &7Левитация врагов &7(10б.)", " &8» &1Нулевая тяга", "", "&1&o«Земля больше не держит их.»"
+
+        # 20. АЛХИМИК
+        else if arg-1 is "alchemist":
+            set name of {_i} to "&5&lТотем &dАлхимика"
+            set custom model data of {_i} to {@alchemist_id}
+            set lore of {_i} to "&7Ранг: &dМастер зелий", "", "&d🧪 Способности:", " &8» &fСлучайная смесь эффектов", " &8» &5Усиление организма", "", "&d&o«Немного того, немного этого...»"
+
+        # 21. КУЗНЕЦ
+        else if arg-1 is "blacksmith":
+            set name of {_i} to "&6&lТотем &eКузнеца"
+            set custom model data of {_i} to {@blacksmith_id}
+            set lore of {_i} to "&7Ранг: &6Мастер", "", "&e🔨 Способности:", " &8» &eМгновенная починка брони", " &8» &9Стойкость III", "", "&6&o«Металл помнит своего творца.»"
+
+        # 22. АРХАНГЕЛ
+        else if arg-1 is "archangel":
+            set name of {_i} to "&e&lТотем &fАрхангела"
+            set custom model data of {_i} to {@archangel_id}
+            set lore of {_i} to "&7Ранг: &fНебесный", "", "&f👼 Способности:", " &8» &fСвятой подъем в небо", " &8» &bЛегкое падение", "", "&e&o«Выше суеты, ближе к небесам.»"
+
+        # 23. ПУСТОТА
+        else if arg-1 is "void":
+            set name of {_i} to "&0&lТотем &8Пустоты"
+            set custom model data of {_i} to {@void_id}
+            set lore of {_i} to "&7Ранг: &8Забытый", "", "&0⬛ Способности:", " &8» &7Пожирание всех баффов врагов", " &8» &8Тишина Бездны", "", "&0&o«Где была магия, останется ничто.»"
+
+        # 24. НИНДЗЯ
+        else if arg-1 is "ninja":
+            set name of {_i} to "&8&lТотем &7Ниндзя"
+            set custom model data of {_i} to {@ninja_id}
+            set lore of {_i} to "&7Ранг: &8Скрытный", "", "&7💨 Способности:", " &8» &7Дымовая завеса", " &8» &fИнвиз и Рывок", "", "&7&o«Удар из тени — это всё, что они увидят.»"
+
+        # 25. ФЕНИКС
+        else if arg-1 is "phoenix":
+            set name of {_i} to "&6&lТотем &4ФЕНИКСА"
+            set custom model data of {_i} to {@phoenix_id}
+            set lore of {_i} to "&7Ранг: &4БОЖЕСТВЕННЫЙ", "", "&4🔥 Способности:", " &8» &eПолная неуязвимость &7(6 сек.)", " &8» &cОгнестойкость &7(1 мин.)", "", "&4&o«Смерть лишь закаляет пламя.»"
+
+        # 26. ЦАРЬ МОРЕЙ
+        else if arg-1 is "ocean_king":
+            set name of {_i} to "&1&lТотем &bЦаря Морей"
+            set custom model data of {_i} to {@ocean_king_id}
+            set lore of {_i} to "&7Ранг: &bВладыка", "", "&b🔱 Способности:", " &8» &bЛовушка из океанских вод", " &8» &1Дыхание бездны", "", "&1&o«Колени перед мощью прилива!»"
+
+        # 27. КРУШИТЕЛЬ
+        else if arg-1 is "berserk_v2":
+            set name of {_i} to "&4&lТотем &cКрушителя"
+            set custom model data of {_i} to {@berserk_v2_id}
+            set lore of {_i} to "&7Ранг: &4Разрушитель", "", "&c💥 Способности:", " &8» &4Сейсмическая волна &7(-10hp)", " &8» &cСокрушение брони", "", "&4&o«Земля дрожит от твоего гнева.»"
+
+        # 28. ТОРГОВЕЦ
+        else if arg-1 is "trader":
+            set name of {_i} to "&a&lТотем &2Торговца"
+            set custom model data of {_i} to {@trader_id}
+            set lore of {_i} to "&7Ранг: &aБогач", "", "&2💰 Способности:", " &8» &aМаксимальные скидки V", " &8» &eПрилив золота", "", "&a&o«У каждого есть цена, я просто знаю ее.»"
+
+        # 29. ПРИЗРАК
+        else if arg-1 is "ghost":
+            set name of {_i} to "&7&lТотем &fПризрака"
+            set custom model data of {_i} to {@ghost_id}
+            set lore of {_i} to "&7Ранг: &fБесплотный", "", "&f👻 Способности:", " &8» &fПризрачный полет &7(10 сек.)", " &8» &7Прохождение сквозь стены", "", "&7&o«Мир — это всего лишь декорация.»"
+
+        # 30. ДРАКОН
+        else if arg-1 is "dragon":
+            set name of {_i} to "&5&lТотем &dДракона"
+            set custom model data of {_i} to {@dragon_id}
+            set lore of {_i} to "&7Ранг: &5Древний", "", "&5🐲 Способности:", " &8» &dЗалп Драконьего огня", " &8» &5Величие Края", "", "&d&o«Твой голос — это гром, твое дыхание — огонь.»"
+
+        # 31. ХАКЕР
+        else if arg-1 is "hacker":
+            set name of {_i} to "&b&lТотем &3Хаккера"
+            set custom model data of {_i} to {@hacker_id}
+            set lore of {_i} to "&7Ранг: &bЗапрещенный", "", "&b💻 Способности:", " &8» &fПолная остановка времени &7(8с.)", " &8» &3Взлом реальности", "", "&3&o«Error 404: Mortality not found.»"
+
+        # 32. ТИТАН
+        else if arg-1 is "titan":
+            set name of {_i} to "&6&lТотем &eТитана"
+            set custom model data of {_i} to {@titan_id}
+            set lore of {_i} to "&7Ранг: &6Колоссальный", "", "&e🛡 Способности:", " &8» &dОгромное здоровье &7(3 мин.)", " &8» &cСила III", "", "&6&o«Даже боги боятся твоей мощи.»"
+
+
+# 33. БОГ
+        else if arg-1 is "god":
+            set name of {_i} to "&e&l⭐ ТОТЕМ БОГА ⭐"
+            set custom model data of {_i} to {@god_id}
+            set lore of {_i} to "&7Ранг: &e&lАБСОЛЮТНЫЙ", "", "&f⚡ Способности:", " &8» &fПолная неуязвимость &7(15с.)", " &8» &fОчистка от всех дебаффов", "", "&e&o«Смерть — это лишь слово.»"
+
+        # 34. ЖНЕЦ V2
+        else if arg-1 is "reaper_v2":
+            set name of {_i} to "&4&l💀 ТОТЕМ ВЕЛИКОЙ ЖАТВЫ"
+            set custom model data of {_i} to {@reaper_v2_id}
+            set lore of {_i} to "&7Ранг: &4ЭПИЧЕСКИЙ", "", "&c🩸 Способности:", " &8» &fКража 4 сердец у всех в радиусе 12б.", " &8» &fМгновенный отхил за счет врагов", "", "&4&o«Ваша кровь — моё вино.»"
+
+        # 35. АНТИ-ТРАПЕР
+        else if arg-1 is "anti_trap":
+            set name of {_i} to "&b&l🌀 ТОТЕМ АНТИ-ТРАПЕРА"
+            set custom model data of {_i} to {@anti_trap_id}
+            set lore of {_i} to "&7Ранг: &bЛЕГЕНДАРНЫЙ", "", "&b✨ Способности:", " &8» &fРаскидывает врагов в радиусе 6б.", " &8» &fДает полет на 5 секунд", "", "&3&o«Стены вас не удержат.»"
+
+        # 36. МАГНАТ
+        else if arg-1 is "rich":
+            set name of {_i} to "&6&l💰 ТОТЕМ МАГНАТА"
+            set custom model data of {_i} to {@rich_id}
+            set lore of {_i} to "&7Ранг: &6БОГАТЫЙ", "", "&e💎 Способности:", " &8» &fУдача X на 10 минут", " &8» &fСпешка V", "", "&6&o«Деньги решают всё.»"
+
+        # 37. ОВЕРЛОРД
+        else if arg-1 is "overlord":
+            set name of {_i} to "&5&l👑 ТОТЕМ ОВЕРЛОРДА"
+            set custom model data of {_i} to {@overlord_id}
+            set lore of {_i} to "&7Ранг: &5ПОВЕЛИТЕЛЬ", "", "&d⚔ Способности:", " &8» &fПризывает 3 железных големa", " &8» &fСила III на 30 секунд", "", "&5&o«Склонитесь перед королем!»"
+
+
+
+        give {_i} to {_target}
+        send "&a&l✔ &fВы выдали тотем &e%arg-1% &fигроку &b%{_target}%" to player
+
+
+
+on tab complete of "/givetotem":
+    set {_t::*} to "berserk", "turtle", "phantom", "vampire", "miner", "thief", "paladin", "storm", "diver", "escape", "farmer", "reaper", "tank", "inferno", "medic", "frost", "luck", "scout", "gravity", "alchemist", "blacksmith", "archangel", "void", "ninja", "phoenix", "ocean_king", "berserk_v2", "trader", "ghost", "dragon", "hacker", "titan", "god", "reaper_v2", "anti_trap", "rich" and "overlord"
+    
+    # Очищаем стандартные подсказки (ники игроков и т.д.)
+    clear tab completions
+    
+    # Если мы пишем ПЕРВЫЙ аргумент (название тотема)
+    if tab arg 2 is not set:
+        if tab arg 1 is not set:
+            add {_t::*} to tab completions
+        else:
+            loop {_t::*}:
+                if loop-value starts with tab arg 1:
+                    add loop-value to tab completions
+    
+    # Если мы выбрали тотем и пишем ВТОРОЙ аргумент (ник игрока)
+    else if tab arg 3 is not set:
+        loop all players:
+            if tab arg 2 is not set:
+                add all players to tab completions
+            else:
+                if loop-player's name starts with tab arg 2:
+                    add loop-player's name to tab completions
+
+
+
+command /buytotem <text>:
+    trigger:
+        # 1. Проверка прав
+        if player does not have permission "dzuni.skript":
+            send "&c&l❕ &fЭтот ранг доступен только элите! У вас нет прав."
+            play sound "block.iron_door.close" to player
+            stop
+
+        # 2. Настройка цен и названий для анонса
+        set {_price} to 0
+        if arg-1 is "god":
+            set {_price} to 125000
+            set {_msg} to "&e&l⭐ ТОТЕМ БОГА ⭐"
+        else if arg-1 is "reaper_v2":
+            set {_price} to 100000
+            set {_msg} to "&4&l💀 ТОТЕМ ВЕЛИКОЙ ЖАТВЫ"
+        else if arg-1 is "anti_trap":
+            set {_price} to 90000
+            set {_msg} to "&b&l🌀 ТОТЕМ АНТИ-ТРАПЕРА"
+        else if arg-1 is "rich":
+            set {_price} to 75000
+            set {_msg} to "&6&l💰 ТОТЕМ МАГНАТА"
+        else if arg-1 is "overlord":
+            set {_price} to 110000
+            set {_msg} to "&5&l👑 ТОТЕМ ОВЕРЛОРДА"
+        
+        if {_price} is 0:
+            send "&cОшибка: Цена не установлена."
+            stop
+
+        # 3. Проверка баланса
+        set {_bal} to player's balance
+        
+        if {_bal} >= {_price}:
+            # Снимаем деньги
+            remove {_price} from player's balance
+            
+            # Вызываем твою команду выдачи
+            execute console command "givetotem %arg-1% %player%"
+            
+            # Сообщение самому игроку
+            send "&a&l✔ &fВы успешно купили тотем за &e%{_price}%¥"
+            play sound "entity.player.levelup" with volume 0.5 to player
+            show flash at player
+
+            # --- ОБЩЕЕ ОБЪЯВЛЕНИЕ (БЕЗ НИКА) ---
+            broadcast ""
+            broadcast "  &d&l✨ &fКто-то приобрёл %{_msg}% &d&l✨"
+            broadcast "  &7&oСчастливчик стал ещё сильнее..."
+            broadcast ""
+            
+        else:
+            set {_need} to {_price} - {_bal}
+            send "&c&l❕ &fНедостаточно средств! Вам не хватает &a¥%{_need}%"
+            send "&7&o(Ваш текущий баланс: %{_bal}%)"
+            play sound "block.note_block.bass" to player
+
+
+
+
+
+
+
+
+# --- КОМАНДА ДЛЯ ОТКРЫТИЯ МЕНЮ ОБМЕНА ---
+command /totemtrade:
+    trigger:
+        # Используем переменную для надежного сравнения заголовка
+        set {_t} to "§0Обмен: 2 к 1"
+        set {_gui} to chest inventory with 6 rows named {_t}
+        
+        # Заполнитель фона
+        loop 54 times:
+            set slot (loop-number - 1) of {_gui} to black stained glass pane named " "
+        
+        # Информационные панели
+        set slot 10 of {_gui} to barrier named "&c&lСлот 1" with lore "&7Нажмите на кастомный тотем", "&7в инвентаре, чтобы положить его сюда."
+        set slot 19 of {_gui} to barrier named "&c&lСлот 2" with lore "&7Нажмите на кастомный тотем", "&7в инвентаре, чтобы положить его сюда."
+        set slot 13 of {_gui} to sunflower named "&e&lИНСТРУКЦИЯ" with lore "&7Положите 2 любых кастомных", "&7тотема слева, чтобы выбрать", "&7любой обычный тотем справа.", "", "&c⚠ Эпические тотемы недоступны!"
+        set slot 46 of {_gui} to red wool named "&c&lСбросить обмен"
+        set {_back} to paper named "&a&lНазад" with lore "&7Нажмите, чтобы вернуться", "&7в главное меню тотемов."
+        set custom model data of {_back} to 10179
+        set slot 48 of {_gui} to {_back}
+        
+        
+        # Отображаем тотемы из памяти
+        if {trade::%player%::1} is set:
+            set slot 10 of {_gui} to {trade::%player%::1}
+        if {trade::%player%::2} is set:
+            set slot 19 of {_gui} to {trade::%player%::2}
+
+        # Список тотемов на русском
+        set {_names::*} to "БЕРСЕРКА", "ЧЕРЕПАХИ", "ФАНТОМА", "ВАМПИРА", "ШАХТЕРА", "ВОРА", "ПАЛАДИНА", "ШТОРМА", "НЫРЯЛЬЩИКА", "ПОБЕГА", "ФЕРМЕРА", "ЖНЕЦА", "ТАНКА", "ИНФЕРНО", "МЕДИКА", "МОРОЗА", "УДАЧИ", "СКАУТА", "ГРАВИТАЦИИ", "АЛХИМИКА", "КУЗНЕЦА", "АРХАНГЕЛА", "ПУСТОТЫ", "НИНДЗЯ", "ФЕНИКСА", "ЦАРЯ МОРЕЙ", "КРУШИТЕЛЯ", "ТОРГОВЦА", "ПРИЗРАКА", "ДРАКОНА", "ХАКЕРА", "ТИТАНА"
+        # Соответствующие им ID для консоли
+        set {_ids::*} to "berserk", "turtle", "phantom", "vampire", "miner", "thief", "paladin", "storm", "diver", "escape", "farmer", "reaper", "tank", "inferno", "medic", "frost", "luck", "scout", "gravity", "alchemist", "blacksmith", "archangel", "void", "ninja", "phoenix", "ocean_king", "berserk_v2", "trader", "ghost", "dragon", "hacker", "titan"
+        
+        set {_s} to 14
+        loop {_names::*}:
+            set {_item} to totem of undying
+            enchant {_item} with unbreaking 1
+            add hide enchants to item flags of {_item}
+            
+            # Сохраняем ID в скрытом лоре
+            set {_id} to {_ids::%loop-index%}
+            set slot {_s} of {_gui} to {_item} named "&6&l💰 ТОТЕМ %loop-value%" with lore "&8ID: %{_id}%", "&7Нажмите, чтобы получить этот тотем"
+            
+            add 1 to {_s}
+            if {_s} is 18 or 27 or 36 or 45:
+                add 5 to {_s}
+
+        open {_gui} to player
+
+# --- ОБРАБОТКА КЛИКОВ ---
+on inventory click:
+    if name of event-inventory contains "Обмен: 2 к 1":
+        cancel event
+        
+        # Защита от клика по пустоте
+        set {_item} to event-item
+        if {_item} is air:
+            stop
+
+        # 1. Клик в инвентаре игрока
+        if clicked inventory is player's inventory:
+            set {_cmd} to custom model data of {_item}
+            if {_cmd} is set:
+                if {_cmd} >= 1001 and {_cmd} <= 1032:
+                    if {trade::%player%::1} is not set:
+                        set {trade::%player%::1} to {_item}
+                        remove 1 of {_item} from player's inventory
+                    else if {trade::%player%::2} is not set:
+                        set {trade::%player%::2} to {_item}
+                        remove 1 of {_item} from player's inventory
+                    else:
+                        send "&c[!] Все слоты заняты."
+                    execute player command "totemtrade"
+                else:
+                    send "&c[!] Этот тотем слишком мощный для обмена!"
+            stop
+
+        # 2. Клик в GUI
+        set {_slot} to index of clicked slot
+        
+        # Кнопка сброса
+        if {_slot} is 46:
+            loop 2 times:
+                if {trade::%player%::%loop-number%} is set:
+                    give {trade::%player%::%loop-number%} to player
+            delete {trade::%player%::*}
+            execute player command "totemtrade"
+            stop
+        # Кнопка Назад (слот 48)
+        if {_slot} is 48:
+            close player's inventory
+            execute console command "dm open totems %player%"
+            play sound "UI.BUTTON.CLICK" with volume 1 and pitch 1 to player
+            stop    
+        # Поиск ID в лоре нажатого предмета
+        set {_lore::*} to lore of {_item}
+        loop {_lore::*}:
+            if loop-value contains "ID: ":
+                if {trade::%player%::1} is set:
+                    if {trade::%player%::2} is set:
+                        # Извлекаем ID
+                        set {_id} to loop-value
+                        replace "&8ID: " with "" in {_id}
+                        
+                        # Выдача
+                        delete {trade::%player%::*}
+                        close player's inventory
+                        execute console command "givetotem %{_id}% %player%"
+                        send "&a&l✔ &fОбмен завершен! Вы получили новый тотем."
+                        play sound "entity.player.levelup" to player
+                    else:
+                        send "&c[!] Положите 2 тотема для обмена!"
+                else:
+                    send "&c[!] Положите 2 тотема для обмена!"
+                stop
