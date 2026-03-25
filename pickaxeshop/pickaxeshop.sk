@@ -1,0 +1,963 @@
+function formatTime(t: timespan) :: text:
+    set {_total} to (ticks of {_t} / 20) # Превращаем тики в секунды (самый стабильный метод)
+    set {_m} to floor({_total} / 60)
+    set {_s} to floor({_total} mod 60)
+    
+    if {_s} < 10:
+        return "%{_m}%:0%{_s}%"
+    return "%{_m}%:%{_s}%"
+
+
+# --- ФУНКЦИЯ ПОКУПКИ ---
+function buyPickaxe(p: player, price: number, item: item):
+    set {_raw_bal} to "%{_p}'s balance%"
+    replace all "," and "¥" and "$" and " " with "" in {_raw_bal}
+    set {_split::*} to {_raw_bal} split at "."
+    set {_final_bal} to {_split::1} parsed as number
+    
+    if {_final_bal} >= {_price}:
+        if {_p} has enough space for {_item}:
+            remove {_price} from {_p}'s balance
+            
+            set {_l::*} to lore of {_item}
+            add "" to {_l::*}
+            add "§8» §fВладелец: §7%{_p}%" to {_l::*}
+            set lore of {_item} to {_l::*}
+            
+            give {_item} to {_p}
+            send action bar "§a§l✔ §fПриобретено! §8(§e-%{_price}% ¥§8)" to {_p}
+            play sound "entity.player.levelup" with volume 0.4 and pitch 2 at {_p}
+            
+            if {_price} == 200000:
+                broadcast "§d§lМАГАЗИН §8» §fИгрок §d%display name of {_p}% §fприобрел §5§lСЕРДЦЕ СЕРВЕРА§f!"
+                play sound "ui.toast.challenge_complete" with volume 1 and pitch 1 to all players
+        else:
+            send action bar "§c§l✕ §fИнвентарь заполнен!" to {_p}
+    else:
+        send action bar "§c§l✕ §fНедостаточно средств!" to {_p}
+        play sound "block.note_block.bass" with volume 1 and pitch 1 to {_p}
+
+# --- ЭФФЕКТ ПРИ КОПАНИИ (Спешка) ---
+on mine:
+    if player's tool is a netherite pickaxe:
+        if name of player's tool contains "СЕРДЦЕ СЕРВЕРА":
+            chance of 10%:
+                apply haste 2 to player for 6 seconds
+                send action bar "§e⚡ Энергия недр: Спешка II" to player
+
+
+
+function getMultiplier(p: player) :: number:
+    set {_m} to 1.0
+    
+    # Донат
+    if {_p} has permission "taysa.skript":
+        set {_m} to 1.5
+    else if {_p} has permission "gunso.skript":
+        set {_m} to 1.2
+        
+    # Глобальный (прибавляем 0.5 к базе)
+    if {booster::global} is set:
+        add 0.5 to {_m}
+        
+    # Личный (прибавляем 0.5 или 1.0)
+    set {_u} to uuid of {_p}
+    if {booster::personal::%{_u}%} is set:
+        set {_val} to {booster::personal::%{_u}%} - 1.0
+        add {_val} to {_m}
+        
+    return {_m}
+
+
+
+# --- МЕНЮ МАГАЗИНА ---
+command /pickaxeshop1:
+
+    trigger:
+        set {_gui} to a new chest inventory with 4 rows named "Магазин инструментов"
+        set slot (integers between 0 and 35) of {_gui} to gray stained glass pane named "§x§6§B§0§0§F§F§l§oP§x§B§C§8§3§F§F§l§oL"
+        
+        set {_bal} to player's balance
+        set slot 4 of {_gui} to emerald named "§a§lВаш Баланс" with lore "§fНа вашем счету: §e%{_bal}% ¥"
+        
+        # Кирки (твои зачарования)
+        set slot 10 of {_gui} to diamond pickaxe of efficiency 2 named "§b§lАлмазка: Уровень 1" with lore "§7Начальный инструмент", "", "§eЦена: 1500 ¥"
+        set slot 11 of {_gui} to diamond pickaxe of efficiency 3 named "§b§lАлмазка: Уровень 2" with lore "§7Чуть быстрее", "", "§eЦена: 3500 ¥"
+        set slot 12 of {_gui} to diamond pickaxe of efficiency 4 and unbreaking 2 named "§b§lАлмазка: Уровень 3" with lore "§7Надёжная классика", "", "§eЦена: 7000 ¥"
+        set slot 13 of {_gui} to diamond pickaxe of efficiency 5 named "§b§lАлмазка: Мастер" with lore "§7Максимальная скорость", "", "§eЦена: 12000 ¥"
+        set slot 14 of {_gui} to diamond pickaxe of efficiency 5 and fortune 2 named "§b§lАлмазка: Ресурсник" with lore "§7Больше руды", "", "§eЦена: 22000 ¥"
+        set slot 15 of {_gui} to diamond pickaxe of efficiency 5 and silk touch named "§b§lАлмазка: Ювелир" with lore "§7Для целых блоков", "", "§eЦена: 28000 ¥"
+        set slot 16 of {_gui} to diamond pickaxe of efficiency 5, fortune 3 and unbreaking 3 named "§b§l§nАЛМАЗНЫЙ ИДЕАЛ" with lore "§fЛучшая из возможных", "", "§eЦена: 50000 ¥"
+
+        set slot 19 of {_gui} to netherite pickaxe of efficiency 4 named "§6§lНезеритка: Старт" with lore "§7Прочность недр", "", "§eЦена: 75000 ¥"
+        set slot 20 of {_gui} to netherite pickaxe of efficiency 5 and unbreaking 3 named "§6§lНезеритка: Стойкость" with lore "§7Долгая работа", "", "§eЦена: 90000 ¥"
+        set slot 21 of {_gui} to netherite pickaxe of efficiency 5 and silk touch named "§6§lНезеритка: Шёлк" with lore "§7Бережное касание", "", "§eЦена: 110000 ¥"
+        set slot 22 of {_gui} to netherite pickaxe of efficiency 5, fortune 3 and unbreaking 3 named "§6§lНезеритка: Удача" with lore "§7Король добычи", "", "§eЦена: 135000 ¥"
+        set slot 23 of {_gui} to netherite pickaxe of efficiency 5, fortune 3, unbreaking 3 and mending named "§6§lНезеритка: Вечность" with lore "§7Самосборная кирка", "", "§eЦена: 160000 ¥"
+        set slot 24 of {_gui} to netherite pickaxe of efficiency 5, silk touch, unbreaking 3 and mending named "§4§lМОНОЛИТ" with lore "§cНеразрушимый шёлк", "", "§eЦена: 180000 ¥"
+        set slot 25 of {_gui} to netherite pickaxe of efficiency 5, fortune 3, unbreaking 3 and mending named "§d§lСЕРДЦЕ СЕРВЕРА" with lore "§dСамый ценный артефакт", "", "§eЦена: 200000 ¥"
+
+        # ПРИКОЛЮХИ
+        #set slot 31 of {_gui} to bundle named "§d§lКИРКА-СЮРПРИЗ" with lore "§fИспытай удачу!", "§7Может выпасть любая кирка из магазина", "", "§eЦена: 45000 ¥"
+        # Незеритовая кирка (Разрушитель спавнеров)
+        set {_lore_spawner} to "§7Забытая кузнечная мощь||§fПозволяет сломать §e1 спавнер§f||§fТип спавнера сохраняется!||§f||§eЦена: 350000 ¥"
+        set {_l_sp::*} to {_lore_spawner} split at "||"
+        set slot 34 of {_gui} to netherite pickaxe named "§4§lРазрушитель Спавнеров" with lore {_l_sp::*}
+        # СТРЕЛКА К СКУПЩИКУ
+        #set {_item} to stick with custom model data 5611102
+        set slot 27 of {_gui} to paper with custom model data 10184 named "§c§l« Назад"
+                # Золотая кирка (Бедроколом)
+        set {_lore_bedrock} to "§7Древняя магия золота||§fПозволяет сломать §e1 блок §fбедрока||§f||§eЦена: 250000 ¥"
+        set {_l_br::*} to {_lore_bedrock} split at "||"
+        set slot 33 of {_gui} to golden pickaxe named "§6§lРазрушитель Бедрока" with lore {_l_br::*}
+        open {_gui} to player
+
+
+# --- ОБРАБОТКА КЛИКОВ ---
+on inventory click:
+    if name of event-inventory is "Магазин инструментов":
+        cancel event
+        if event-item is emerald:
+            stop
+        if index of event-slot is 27:
+            execute player command "pickaxeshop"
+            stop
+#        if index of event-slot is 31: # КИРКА СЮРПРИЗ
+#            set {_p} to player
+#            set {_raw_bal} to "%{_p}'s balance%"
+#            replace all "," and "¥" and "$" and " " with "" in {_raw_bal}
+#            set {_split::*} to {_raw_bal} split at "."
+#            set {_final_bal} to {_split::1} parsed as number
+#            
+#            if {_final_bal} >= 45000:
+#                remove 45000 from {_p}'s balance
+#                send action bar "§d§l🎲 Испытываем удачу..." to {_p}
+#                wait 1 second
+#                chance of 70%:
+#                    set {_i} to diamond pickaxe of efficiency 3 named "§b§lАлмазка: Уровень 2"
+#                else if chance of 25%:
+#                    set {_i} to netherite pickaxe of efficiency 5 named "§6§lНезеритка: Старт"
+#                else:
+#                    set {_i} to netherite pickaxe of efficiency 5, fortune 3, unbreaking 3 and mending named "§d§lСЕРДЦЕ СЕРВЕРА"
+#                give {_i} to {_p}
+#                play sound "block.enchantment_table.use" to {_p}
+#            else:
+#                send action bar "§cНужно 45,000 ¥!" to {_p}
+#                play sound "block.note_block.bass" with volume 1 and pitch 1 to player
+#            stop
+
+        if event-item is not air or gray stained glass pane:
+            set {_lore::*} to lore of event-item
+            set {_price_str} to last element of {_lore::*}
+            replace all "§eЦена: " and " ¥" and " " with "" in {_price_str}
+            set {_price} to {_price_str} parsed as number
+            
+            set {_giveItem} to event-item
+            set {_l::*} to lore of {_giveItem}
+            delete {_l::%size of {_l::*}%} 
+            delete {_l::%size of {_l::*}%} 
+            set lore of {_giveItem} to {_l::*}
+            buyPickaxe(player, {_price}, {_giveItem})
+
+
+
+
+
+
+
+
+
+
+# --- ФУНКЦИЯ ОТРИСОВКИ ПРЕДМЕТА ---
+function setSellItem(p: player, s: number, i: item, n: text):
+    set {_u} to uuid of {_p}
+    if {sellmode::%{_u}%} is not set:
+        set {sellmode::%{_u}%} to 1
+    
+    set {_m} to {sellmode::%{_u}%}
+    set {_id} to "%type of {_i}%"
+    replace all " " with "_" in {_id}
+    set {_price} to {price::%{_id}%} if {price::%{_id}%} is set else 0
+    
+    # Проверка статуса авто-продажи
+    set {_auto} to "§cВЫКЛ"
+    if {autosell::%{_u}%::%{_id}%} is true:
+        set {_auto} to "§aВКЛ"
+    
+    add "" to {_l::*}
+    add " §7Цена за штуку: §e%{_price}% ¥" to {_l::*}
+    add " §7Авто-продажа: %{_auto}%" to {_l::*}
+    add "" to {_l::*}
+    add " §fВыберите количество:" to {_l::*}
+    
+    if {_m} is 1:
+        add "  §e§l▶ §fПродать §61 шт. §e§l◀" to {_l::*}
+    else:
+        add "  §8◦ §7Продать 1 шт." to {_l::*}
+    if {_m} is 16:
+        add "  §e§l▶ §fПродать §616 шт. §e§l◀" to {_l::*}
+    else:
+        add "  §8◦ §7Продать 16 шт." to {_l::*}
+    if {_m} is 32:
+        add "  §e§l▶ §fПродать §632 шт. §e§l◀" to {_l::*}
+    else:
+        add "  §8◦ §7Продать 32 шт." to {_l::*}
+    if {_m} is 64:
+        add "  §e§l▶ §fПродать §664 шт. §e§l◀" to {_l::*}
+    else:
+        add "  §8◦ §7Продать 64 шт." to {_l::*}
+    if {_m} is 0:
+        add "  §e§l▶ §fПродать §6всё §e§l◀" to {_l::*}
+    else:
+        add "  §8◦ §7Продать всё" to {_l::*}
+        
+    add "" to {_l::*}
+    add " §fДействия:" to {_l::*}
+    add "  §eЛКМ §8» §7Продать выбранное" to {_l::*}
+    add "  §eПКМ §8» §7Сменить количество" to {_l::*}
+    add "  §eКл. Q §8» §fАвто-продажа §8(§7Toggle§8)" to {_l::*}
+    add "" to {_l::*}
+    
+    set slot {_s} of {_p}'s current inventory to {_i} named "%{_n}%" with lore {_l::*}
+    
+
+    
+    
+command /sellgui:
+    trigger:
+        set {_gui} to a new chest inventory with 5 rows named "Скупщик ресурсов"
+        open {_gui} to player
+        set slot (integers between 0 and 44) of player's current inventory to gray stained glass pane named "§x§6§B§0§0§F§F§l§oP§x§B§C§8§3§F§F§l§oL"
+        updateSellGUI(player)
+
+
+
+# --- НАСТРОЙКА ЦЕН И БУСТЕРОВ ---
+on load:
+    set {price::cobblestone} to 0.5
+    set {price::stone} to 0.8
+    set {price::deepslate} to 1.0
+    set {price::tuff} to 1.0
+    set {price::netherrack} to 0.3
+    set {price::basalt} to 0.5
+    set {price::coal} to 3.0
+    set {price::iron_ingot} to 15.0
+    set {price::copper_ingot} to 8.0
+    set {price::gold_ingot} to 25.0
+    set {price::gold_nugget} to 2.5 # <--- Добавил цену
+    set {price::lapis_lazuli} to 12.0
+    set {price::redstone} to 10.0
+    set {price::quartz} to 7.0
+    set {price::diamond} to 100.0
+    set {price::emerald} to 150.0
+    set {price::ancient_debris} to 800.0
+
+function updateSellGUI(p: player):
+    # Ряд 1-2: Обычные ресурсы
+    setSellItem({_p}, 10, cobblestone, "§7Булыжник")
+    setSellItem({_p}, 11, stone, "§7Камень")
+    setSellItem({_p}, 12, deepslate, "§8Глубинный сланец")
+    setSellItem({_p}, 13, tuff, "§8Туф")
+    setSellItem({_p}, 14, netherrack, "§cНезерак")
+    setSellItem({_p}, 15, basalt, "§8Базальт")
+    setSellItem({_p}, 16, coal, "§8Уголь")
+    
+    # Ряд 3: Слитки и основные руды
+    setSellItem({_p}, 19, iron ingot, "§fЖелезо")
+    setSellItem({_p}, 20, copper ingot, "§6Медь")
+    setSellItem({_p}, 21, gold ingot, "§6Золото")
+    setSellItem({_p}, 22, gold nugget, "§eЗолотой самородок")
+    setSellItem({_p}, 23, quartz, "§fКварц")
+
+    # Ряд 4: Драгоценности (как ты просил - в одну строчку)
+    setSellItem({_p}, 28, lapis lazuli, "§9Лазурит")
+    setSellItem({_p}, 29, redstone, "§cРедстоун")
+    setSellItem({_p}, 30, diamond, "§bАлмаз")
+    setSellItem({_p}, 31, emerald, "§aИзумруд")
+    setSellItem({_p}, 32, ancient debris, "§4Древние обломки")
+    
+    set {_u} to uuid of {_p}
+    
+# --- Кнопка: АВТО-ПРОДАЖА ВСЕГО (Палка с Custom ID) ---
+    set {_all_enabled} to true
+    loop {price::*}:
+        if {autosell::%{_u}%::%loop-index%} is not set:
+            set {_all_enabled} to false
+            
+    if {_all_enabled} is false:
+        set {_item} to stick with custom model data 5611101
+        set {_status} to "§aВКЛЮЧИТЬ"
+    else:
+        set {_item} to stick with custom model data 5611102
+        set {_status} to "§cВЫКЛЮЧИТЬ"
+            
+    set {_all_lore::*} to ""
+    add " §7Массовое управление авто-продажей." to {_all_lore::*}
+    add "" to {_all_lore::*}
+    add " §fДействие: %{_status}% для всех ресурсов" to {_all_lore::*}
+    add "" to {_all_lore::*}
+    add " §eНажми, чтобы изменить!" to {_all_lore::*}
+    set slot 34 of {_p}'s current inventory to {_item} named "§6§lАВТО-ПРОДАЖА: ВСЁ" with lore {_all_lore::*}
+    
+   
+    
+# ... внутри функции updateSellGUI ...
+    set {_u} to uuid of {_p}
+    set {_multiplier} to getMultiplier({_p})
+    set {_total} to {stats::sell::%{_u}%}
+    
+    # Формируем красивую строку множителя
+    set {_m_display} to "§e%{_multiplier}%x"
+    if {booster::global} is set:
+        set {_m_display} to "%{_m_display}% §8(§aГлобальный§8)"
+    else if {booster::personal::%{_u}%} is set:
+        set {_m_display} to "%{_m_display}% §8(§6Бустер§8)"
+
+    # Книга статистики
+    set slot 4 of {_p}'s current inventory to book named "§6§lВаша Статистика" with lore "" and " §fМножитель: %{_m_display}%" and " §fВсего заработано: §a%{_total}% ¥"
+    # --- Кнопка: ПРОДАТЬ ВЕСЬ ИНВЕНТАРЬ (Tropical Fish) ---
+    set {_fish} to tropical fish with custom model data 72214
+    set slot 40 of {_p}'s current inventory to {_fish} named "§a§lПРОДАТЬ ВЕСЬ ИНВЕНТАРЬ" with lore "" and " §eНажми, чтобы очистить инвентарь!"
+    set slot 36 of {_p}'s current inventory to paper with custom model data 10184 named "§c§l« Назад"
+
+
+# --- ЛОГИКА АВТО-ПРОДАЖИ ПРИ ПОДБОРЕ (БЕЗ АБУЗА) ---
+#on pick up:
+#    # 1. Жесткая защита от двойного срабатывания
+#    if event-dropped item has metadata "sold":
+#        stop
+#    set metadata value "sold" of event-dropped item to true
+    
+#    set {_u} to uuid of player
+#    set {_id} to "%type of event-item%"
+#    replace all " " with "_" in {_id}
+    
+    # Проверяем, включена ли автопродажа
+#    if {autosell::%{_u}%::%{_id}%} is true:
+#        if {price::%{_id}%} is set:
+#            cancel event 
+#            set {_amt} to item amount of event-item
+#            delete event-dropped item
+            
+            # ДЕБАГ МНОЖИТЕЛЯ
+#            set {_m} to getMultiplier(player)
+            
+#            set {_base_total} to ({_amt} * {price::%{_id}%})
+#            set {_gain} to ({_base_total} * {_m})
+            
+#            add {_gain} to player's balance
+            
+            # --- ВЫВОД ДЕБАГА В ЧАТ (Только для тебя) ---
+#            if player is op:
+#                send "§7[DEBUG] §fПредмет: §e%{_id}% §f| Кол-во: §e%{_amt}%" to player
+#                send "§7[DEBUG] §fБазовая цена: §e%{price::%{_id}%}% §f| Итого без бафов: §e%{_base_total}%" to player
+#                send "§7[DEBUG] §fТвой множитель: §a%{_m}%x §f| ВЫПЛАТА: §a%{_gain}%" to player
+            
+#            play sound "entity.experience_orb.pickup" with volume 0.3 and pitch 2 to player
+#            send action bar "§d§lСКУПЩИК §8» §fАвто-продажа: §e§n%{_amt}% шт.§f на §a+ %{_gain}% ¥" to player
+
+# --- ОБРАБОТКА КЛИКОВ (ПОЛНАЯ ВЕРСИЯ) ---
+on inventory click:
+    if name of event-inventory is "Скупщик ресурсов":
+        cancel event
+        if clicked inventory is player's inventory:
+            stop
+        if event-item is air or gray stained glass pane:
+            stop
+
+        set {_u} to uuid of player
+        set {_id} to "%type of event-item%"
+        replace all " " with "_" in {_id}
+
+        # --- КНОПКА: НАЗАД (36 слот) ---
+        if index of event-slot is 36:
+            execute player command "pickaxeshop"
+            stop
+
+# Клик по кнопке "Авто-продажа ВСЁ" (34 слот)
+        if index of event-slot is 34:
+            set {_turn_on} to true
+            if item amount of (slot 34 of player's current inventory) is 1: # Простая проверка по модели
+                if custom model data of event-item is 5611102:
+                    set {_turn_on} to false
+
+            loop {price::*}:
+                if {_turn_on} is true:
+                    set {autosell::%{_u}%::%loop-index%} to true
+                else:
+                    delete {autosell::%{_u}%::%loop-index%}
+            
+            updateSellGUI(player)
+            play sound "block.lever.click" to player
+            stop
+
+        # --- НАЖАТИЕ КЛАВИШИ Q (ТОЧЕЧНАЯ АВТО-СКУПКА) ---
+        if "%click type%" contains "drop":
+            if {price::%{_id}%} is set:
+                if {autosell::%{_u}%::%{_id}%} is not set:
+                    set {autosell::%{_u}%::%{_id}%} to true
+                    send "§d§lСКУПЩИК §8» §fАвто-продажа для предмета §aВКЛЮЧЕНА" to player
+                else:
+                    delete {autosell::%{_u}%::%{_id}%}
+                    send "§d§lСКУПЩИК §8» §fАвто-продажа для предмета §cВЫКЛЮЧЕНА" to player
+                
+                play sound "block.note_block.bit" with volume 0.5 and pitch 2 to player
+                updateSellGUI(player)
+            stop
+
+        # Расчет множителя (для ЛКМ и Воронки)
+        set {_m} to getMultiplier(player)
+        #send "%{_m}%" to player
+
+        # --- ПКМ: ПЕРЕКЛЮЧЕНИЕ РЕЖИМА КОЛИЧЕСТВА ---
+        if click type is right mouse button:
+            if index of event-slot is 40: # Игнорируем воронку
+                stop
+            if {sellmode::%{_u}%} is not set:
+                set {sellmode::%{_u}%} to 1
+            
+            if {sellmode::%{_u}%} is 1:
+                set {sellmode::%{_u}%} to 16
+            else if {sellmode::%{_u}%} is 16:
+                set {sellmode::%{_u}%} to 32
+            else if {sellmode::%{_u}%} is 32:
+                set {sellmode::%{_u}%} to 64
+            else if {sellmode::%{_u}%} is 64:
+                set {sellmode::%{_u}%} to 0
+            else:
+                set {sellmode::%{_u}%} to 1
+            updateSellGUI(player)
+            play sound "ui.button.click" with volume 0.5 and pitch 2 to player
+            stop
+
+        # --- ЛКМ: ПРОДАЖА ---
+        if click type is left mouse button:
+            # 1. ПРОДАТЬ ВЕСЬ ИНВЕНТАРЬ (Воронка)
+            if index of event-slot is 40:
+                set {_total} to 0
+                set {_has_trash} to false
+                clear {_summary::*} # Очищаем список для отчета
+                
+                loop all items in player's inventory:
+                    set {_i_id} to "%type of loop-item%"
+                    set {_raw} to {_i_id}
+                    replace all " " with "_" in {_raw}
+                    if {price::%{_raw}%} is set:
+                        set {_a} to item amount of loop-item
+                        add ({_a} * {price::%{_raw}%} * {_m}) to {_total}
+                        # Добавляем в отчет
+                        add {_a} to {_summary::%{_i_id}%}
+                        remove loop-item from player's inventory
+                    else if loop-item is not air:
+                        set {_has_trash} to true
+                
+                if {_total} > 0:
+                    add {_total} to player's balance
+                    add {_total} to {stats::sell::%{_u}%}
+                    
+                    # Формируем список проданного для чата
+                    set {_report} to ""
+                    loop {_summary::*}:
+                        set {_name} to loop-index
+                        set {_amt} to loop-value
+                        set {_report} to "%{_report}%§e%{_name}% §8(§fx%{_amt}%§8)§7, "
+                    
+                    # Убираем лишнюю запятую в конце
+                    set {_report} to subtext of {_report} from 1 to (length of {_report} - 2)
+                    
+                    send "" to player
+                    send "  §d§lСКУПЩИК §8» §fВы очистили инвентарь!" to player
+                    send "  §fПродано: %{_report}%" to player
+                    send "  §fВыручка: §a+ %{_total}% ¥ §8(§ex%{_m}%§8)" to player
+                    send "" to player
+                    
+                    play sound "block.amethyst_block.break" with volume 1 and pitch 1.5 to player
+                    if {_has_trash} is true:
+                        send "  §8(§7В инвентаре остались предметы, которые не скупаются§8)" to player
+                    updateSellGUI(player)
+                else:
+                    send "§d§lСКУПЩИК §8» §cУ вас нет ресурсов для продажи!" to player
+                    play sound "block.note_block.bass" with volume 1 and pitch 1 to player
+                stop
+
+            # 2. ПРОДАЖА ОДНОГО ТИПА (Клик по предмету)
+            set {_m_string} to "%type of event-item%"
+            set {_found} to 0
+            loop all items in player's inventory:
+                if "%type of loop-item%" is {_m_string}:
+                    add item amount of loop-item to {_found}
+            #send "%{_m}% 0" to player
+
+            if {_found} > 0:
+                set {_amount_mode} to {sellmode::%{_u}%} if {sellmode::%{_u}%} is set else 1
+                #send "%{_m}% 1" to player
+                if {_amount_mode} is 0:
+                    set {_to_sell} to {_found}
+                    #send "%{_m}% 2" to player
+                else if {_found} >= {_amount_mode}:
+                    set {_to_sell} to {_amount_mode}
+                    #send "%{_m}% 3" to player
+                else:
+                    set {_to_sell} to {_found}
+                    #send "%{_m}% 4" to player
+                
+                set {_rem} to {_to_sell}
+                loop all items in player's inventory:
+                    if {_rem} > 0:
+                        if "%type of loop-item%" is {_m_string}:
+                            if item amount of loop-item <= {_rem}:
+                                set {_rem} to {_rem} - item amount of loop-item
+                                remove loop-item from player's inventory
+                            else:
+                                set item amount of loop-item to (item amount of loop-item - {_rem})
+                                set {_rem} to 0
+                set {_raw} to {_m_string}
+                replace all " " with "_" in {_raw}
+                
+                # Теперь {_to_sell} - это сколько штук, 
+                # {price::%{_raw}%} - цена за штуку,
+                # {_m} - твой денежный множитель из функции.
+                set {_gain} to ({_to_sell} * {price::%{_raw}%} * {_m})
+                
+                add {_gain} to player's balance
+                add {_gain} to {stats::sell::%{_u}%}
+                
+                send "§d§lСКУПЩИК §8» §fПродано: §e%{_m_string}% §8(§fx%{_to_sell}%§8) §fна §a+ %{_gain}% ¥ §8(§7x%{_m}%§8)" to player
+                play sound "entity.experience_orb.pickup" to player
+                updateSellGUI(player)
+            else:
+                send "§d§lСКУПЩИК §8» §cНечего продавать!" to player
+                play sound "block.note_block.bass" with volume 1 and pitch 1 to player
+
+
+# --- АВТО-ПРОДАЖА В РЕГИОНЕ (ДЛЯ ВЫДАВАЕМЫХ ПРЕДМЕТОВ) ---
+every 10 tick:
+    loop all players:
+        # Проверяем, находится ли игрок в регионе take1
+        # (Требуется WorldGuard + Skript-WorldGuard или аналог)
+        set {_rg} to "%region at loop-player%"
+        if {_rg} contains "take1" or "take3":
+            
+            set {_u} to uuid of loop-player
+            
+
+            set {_m} to getMultiplier(loop-player)
+            set {_total_gain} to 0
+            set {_any_sold} to false
+            
+            # Проверяем инвентарь на наличие предметов из списка цен
+            loop all items in loop-player's inventory:
+                set {_id} to "%type of loop-item%"
+                replace all " " with "_" in {_id}
+                
+                # Если цена установлена и включена авто-продажа для этого ID
+                if {price::%{_id}%} is set:
+                    if {autosell::%{_u}%::%{_id}%} is true:
+                        
+                        set {_amt} to item amount of loop-item
+                        set {_gain} to ({_amt} * {price::%{_id}%} * {_m})
+                        
+                        add {_gain} to {_total_gain}
+                        remove loop-item from loop-player's inventory
+                        set {_any_sold} to true
+            
+            # Если что-то продали — начисляем деньги и пишем в Action Bar
+            if {_any_sold} is true:
+                add {_total_gain} to loop-player's balance
+                add {_total_gain} to {stats::sell::%{_u}%}
+                send action bar "§d§lАВТО-ШАХТА §8» §fПродано ресурсов на §a+ %{_total_gain}% ¥" to loop-player
+
+
+
+on left click on bedrock:
+    # Проверяем, что в руках золотая кирка с нужным названием
+    if player's tool is golden pickaxe:
+        if name of player's tool contains "§6§lРазрушитель Бедрока":
+            # Разрешаем ломать блок в режиме выживания
+            cancel event
+            set event-block to air
+            
+            # Эффекты разрушения
+            play sound "block.ancient_debris.break" with volume 1 and pitch 0.5 at player
+            play sound "entity.item.break" with volume 1 and pitch 1 at player
+            show huge explosion at event-block
+            
+            # Удаляем кирку (одноразовое использование)
+            remove 1 of player's tool from player's inventory
+            send action bar "§6§l⚡ §fМагия исчерпана: Бедрок разрушен!" to player
+        else:
+            if player's gamemode is survival:
+                cancel event
+                send action bar "§cЭтот блок невозможно сломать обычной киркой!" to player
+                
+    else:
+        if player's gamemode is survival:
+            cancel event
+
+
+
+# --- 1. ДОБЫЧА СПАВНЕРА ---
+on left click on spawner:
+    if name of player's tool is "§4§lРазрушитель Спавнеров":
+        if player cannot build at event-block:
+            send "§c§l[DEBUG] §fНет прав в регионе!" to console
+            cancel event
+            stop
+        
+        # Читаем NBT блока
+        set {_nbt} to nbt compound of event-block
+        set {_mob} to string tag "SpawnData;entity;id" of {_nbt}
+        
+        if {_mob} is not set:
+            set {_mob} to "minecraft:pig"
+            send "§e[DEBUG] §fМоб не найден в блоке, ставим по умолчанию: pig" to console
+        else:
+            send "§a[DEBUG] §fИз блока извлечен моб: %{_mob}%" to console
+            
+        cancel event
+        set event-block to air
+        
+        # Выдача предмета (1.21.4 формат)
+        # Мы сохраняем моба ТРЕМЯ разными способами для надежности
+        execute console command "minecraft:give %player% spawner[custom_data={saved_mob:""%{_mob}%""},item_name='""§6§lМагический Спавнер""',lore=['""§7Моб: §e%{_mob}%""','""§0MOB:%{_mob}%""']] 1"
+        
+        send "§b[DEBUG] §fКоманда give отправлена. Проверьте Lore предмета!" to console
+        remove 1 of player's tool from player's inventory
+
+# --- 2. УСТАНОВКА СПАВНЕРА ---
+on place of spawner:
+    # Считываем моба из Lore
+    set {_lore::*} to lore of player's tool
+    loop {_lore::*}:
+        if loop-value contains "§0MOB:":
+            set {_mob} to loop-value
+            replace all "§0MOB:" with "" in {_mob}
+            stop loop
+    
+    if {_mob} is set:
+        set {_x} to floor(x-coord of event-block)
+        set {_y} to floor(y-coord of event-block)
+        set {_z} to floor(z-coord of event-block)
+        
+        # Сначала убираем блок, чтобы избежать ошибки "Could not set"
+        set event-block to air
+        
+        # Ждем 1 тик и ставим "правильный" спавнер
+        wait 1 tick
+        set {_cmd} to "minecraft:setblock %{_x}% %{_y}% %{_z}% spawner{SpawnData:{entity:{id:""%{_mob}%""}}} replace"
+        execute console command {_cmd}
+        
+        # Эффект для подтверждения
+        play sound "block.amethyst_block.chime" with volume 0.5 and pitch 2 at event-block
+    else:
+        send "§c[!] Ошибка: Данные моба не найдены." to console
+
+
+command /boosters:
+    aliases: /бустеры, /boost
+    trigger:
+        set {_gui} to chest inventory with 3 rows named "§8Меню бустеров"
+        set {_u} to uuid of player
+        set slot (all integers from 0 to 26) of {_gui} to gray stained glass pane named "§x§6§B§0§0§F§F§l§oP§x§B§C§8§3§F§F§l§oL"
+        
+# --- ЛОГИКА ЧАСОВ (СЛОТ 4) ---
+        set {_personal_time} to "§cНе активен"
+        set {_global_time} to "§cНе активен"
+        
+        # Личный бустер
+        if {booster::personal::time::%{_u}%} is set:
+            set {_passed} to difference between {booster::personal::time::%{_u}%} and now
+            set {_dur} to 10 minutes if {booster::personal::%{_u}%} is 1.5 else 30 minutes
+            
+            if {_passed} < {_dur}:
+                set {_left} to difference between {_dur} and {_passed}
+                # Добавляем отображение множителя (1.5x или 2.0x)
+                set {_m_val} to {booster::personal::%{_u}%}
+                set {_personal_time} to "§aАктивен §e%{_m_val}%x §8(§f%formatTime({_left})%§8)"
+        
+        # Глобальный бустер
+        if {booster::global::time} is set:
+            set {_passed} to difference between {booster::global::time} and now
+            if {_passed} < 15 minutes:
+                set {_left} to difference between 15 minutes and {_passed}
+                # Глобальный у нас всегда 1.5x по твоему коду
+                set {_global_time} to "§aАктивен §e1.5x §8(§f%formatTime({_left})%§8)"
+
+        set slot 4 of {_gui} to clock named "§6§lСтатус Бустеров" with lore "", " §fЛичный: %{_personal_time}%", " §fГлобальный: %{_global_time}%", ""
+        
+        # --- ОСТАЛЬНЫЕ ПРЕДМЕТЫ (как у тебя) ---
+        set {_l1::*} to "§7Увеличивает твой доход в §e1.5 раза", "§7Действует: §f10 минут","§7Только на предметы в §fшахте", " §7И §f/autosell", "§eЦена: 25,000 ¥"
+        if {booster::personal::%{_u}%} is set:
+            add "§c§lУЖЕ АКТИВИРОВАН" to {_l1::*}
+        set {_i} to potion of fire resistance named "§6§lЛичный Бустер §e1.5x" with lore {_l1::*}
+        add hide attributes and hide additional tooltip to item flags of {_i}
+        set slot 11 of {_gui} to {_i}
+        
+        set {_l2::*} to "§7Увеличивает твой доход в §e2.0 раза", "§7Действует: §f30 минут","§7Только на предметы в §fшахте", " §7И §f/autosell", "§eЦена: 100,000 ¥"
+        if {booster::personal::%{_u}%} is set:
+            add "§c§lУЖЕ АКТИВИРОВАН" to {_l2::*}
+        set {_i2} to potion of swiftness named "§d§lЛичный Бустер §e2.0x" with lore {_l2::*}
+        add hide attributes and hide additional tooltip to item flags of {_i2}
+        set slot 13 of {_gui} to {_i2}
+        
+        set {_lg::*} to "§7Увеличивает доход §aВСЕХ §7игроков", "§7Действует: §f15 минут","§7Только на предметы в §fшахте", " §7И §f/autosell", "§eЦена: 200,000 ¥"
+        if {booster::global} is set:
+            add "§c§lУЖЕ АКТИВИРОВАН" to {_lg::*}
+        set {_ig} to splash potion of regeneration named "§a§lГлобальный Бустер §e1.5x" with lore {_lg::*}
+        add hide attributes and hide additional tooltip to item flags of {_ig}
+        set slot 15 of {_gui} to {_ig}
+        
+        set slot 18 of {_gui} to paper with custom model data 10184 named "§c§l« Назад"
+        
+        open {_gui} to player
+
+# --- ОБРАБОТКА КЛИКОВ В БУСТЕРАХ ---
+on inventory click:
+    if name of event-inventory is "§8Меню бустеров":
+        cancel event
+        set {_u} to uuid of player
+        if index of event-slot is 11 or 13 or 15 or 18:
+            if index of event-slot is 11 or 13:
+                if {booster::personal::%{_u}%} is set:
+                    send "§cУ тебя уже есть активный личный бустер!" to player
+                    stop
+            else if index of event-slot is 15:
+                if {booster::global} is set:
+                    send "§cГлобальный бустер уже активен!" to player
+                    stop
+            else if index of event-slot is 18:
+                execute player command "pickaxeshop"
+                stop
+
+            set {_price} to 0
+            if index of event-slot is 11:
+                set {_price} to 25000
+            else if index of event-slot is 13:
+                set {_price} to 100000
+            else if index of event-slot is 15:
+                set {_price} to 200000
+            
+            set {_raw_bal} to "%player's balance%"
+            replace all "," and "¥" and "$" and " " with "" in {_raw_bal}
+            set {_split::*} to {_raw_bal} split at "."
+            set {_final_bal} to {_split::1} parsed as number
+            
+            if {_final_bal} >= {_price}:
+                remove {_price} from player's balance
+                if index of event-slot is 11:
+                    set {booster::personal::%{_u}%} to 1.5
+                    set {booster::personal::time::%{_u}%} to now # Запоминаем время
+                    send "§6§lБУСТЕР-ШАХТЫ §8» §fАктивирован §e1.5x §fна 10 мин."
+                    wait 10 minutes
+                    delete {booster::personal::%{_u}%}
+                    delete {booster::personal::time::%{_u}%}
+                else if index of event-slot is 13:
+                    set {booster::personal::%{_u}%} to 2.0
+                    set {booster::personal::time::%{_u}%} to now # Запоминаем время
+                    send "§d§lБУСТЕР-ШАХТЫ §8» §fАктивирован §e2.0x §fна 30 мин."
+                    wait 30 minutes
+                    delete {booster::personal::%{_u}%}
+                    delete {booster::personal::time::%{_u}%}
+                else if index of event-slot is 15:
+                    set {booster::global} to 1.5
+                    set {booster::global::time} to now # Запоминаем время
+                    broadcast "§a§lГЛОБАЛЬНЫЙ БУСТЕР-ШАХТЫ §8» §a%player%§f включил §e1.5x §fдля всех на 15 мин!"
+                    wait 15 minutes
+                    delete {booster::global}
+                    delete {booster::global::time}
+                close player's inventory
+            else:
+                send "§cНедостаточно денег!" to player
+
+
+command /boosteradmin [<text>] [<offline player>]:
+    permission: admin.boosters
+    permission message: §cУ вас нет прав на использование этой команды!
+    description: Управление бустерами (сброс)
+    aliases: /ba, /boostadmin
+    trigger:
+        # Если аргумент не указан
+        if arg-1 is not set:
+            send "" to player
+            send "§d§lАдмин-Панель Бустеров" to player
+            send "§f/ba §eresetglobal §7- Сбросить глобальный бустер" to player
+            send "§f/ba §eresetplayer <ник> §7- Сбросить личный бустер игрока" to player
+            send "§f/ba §eresetall §7- Полный сброс всех активных бустеров" to player
+            send "" to player
+            stop
+
+        # Сброс ГЛОБАЛЬНОГО бустера
+        if arg-1 is "resetglobal":
+            if {booster::global} is set:
+                delete {booster::global}
+                broadcast "§c§lБУСТЕР-ШАХТЫ §8» §fГлобальный бустер был принудительно отключен администратором."
+            else:
+                send "§cГлобальный бустер и так не активен." to player
+
+        # Сброс ЛИЧНОГО бустера игрока
+        else if arg-1 is "resetplayer":
+            if arg-2 is set:
+                set {_u} to uuid of arg-2
+                if {booster::personal::%{_u}%} is set:
+                    delete {booster::personal::%{_u}%}
+                    send "§aВы успешно сбросили личный бустер игроку §e%arg-2%§a." to player
+                    if arg-2 is online:
+                        send "§cВаш личный бустер был сброшен администратором." to arg-2
+                else:
+                    send "§cУ этого игрока нет активного бустера." to player
+            else:
+                send "§cУкажите ник игрока! §7(/ba resetplayer Ник)" to player
+
+        # Полный сброс (Очистка всех переменных)
+        else if arg-1 is "resetall":
+            delete {booster::global}
+            delete {booster::personal::*}
+            delete {booster::personal::time::*}
+            delete {booster::global::time}
+            broadcast "§c§lБУСТЕР-ШАХТЫ §8» §fВсе активные бустеры на сервере были обнулены администратором."
+
+
+command /mineszxc:
+    trigger:
+        set {_gui} to chest inventory with 3 rows named "§8⭐ Выбор режима шахты"
+        set slot (all integers from 0 to 27) of {_gui} to gray stained glass pane named "§x§6§B§0§0§F§F§l§oP§x§B§C§8§3§F§F§l§oL"
+        
+        # 1. ОБЫЧНАЯ
+        set {_l1::*} to "§7Простая шахта для новичков.", "", "§fСостав блоков:"
+        add " §8• §7Уголь §e(25%%)" to {_l1::*}
+        add " §8• §6Медь §e(25%%)" to {_l1::*}
+        add " §8• §7Камень §e(25%%)" to {_l1::*}
+        add " §8• §8Сланец §e(15%%)" to {_l1::*}
+        add " §8• §fЖелезо §e(10%%)" to {_l1::*}
+        add " §8• §bАлмазы §c(0.1%%)" to {_l1::*}
+        add " §8• §aИзумруды §c(0.01%%)" to {_l1::*}
+        add "", "§6Стоимость: §e9,000 ¥" to {_l1::*}
+        add "" to {_l1::*}
+        add "§e» Нажмите для покупки" to {_l1::*}
+        set slot 10 of {_gui} to cobblestone named "§f§lОбычная шахта" with lore {_l1::*}
+        
+        # 2. РЕДКАЯ (SUPER)
+        set {_l2::*} to "§7Улучшенные руды и глубокий сланец.", "", "§fСостав блоков:"
+        add " §8• §8Сланец §e(35%%)" to {_l2::*}
+        add " §8• §7Камень §e(20%%)" to {_l2::*}
+        add " §8• §fЖелезо §e(15%%)" to {_l2::*}
+        add " §8• §7Туф §e(10%%)" to {_l2::*}
+        add " §8• §7Уголь §e(8%%)" to {_l2::*}
+        add " §8• §9Лазурит §e(5%%)" to {_l2::*}
+        add " §8• §cРедстоун §e(5%%)" to {_l2::*}
+        add " §8• §eЗолото §e(2%%)" to {_l2::*}
+        add " §8• §bАлмазы §e(1%%)" to {_l2::*}
+        add " §8• §aИзумруды §c(0.1%%)" to {_l2::*}
+        add "" to {_l2::*}
+        add "§6Стоимость: §e16,000 ¥" to {_l2::*}
+        add "" to {_l2::*}
+        add "§e» Нажмите для покупки" to {_l2::*}
+        set slot 11 of {_gui} to iron ore named "§6§lРедкая шахта" with lore {_l2::*}
+        
+        # 3. СТРОИТЕЛЬНАЯ (BUILDER)
+        set {_l3::*} to "§7Рай для строителя и декоратора.", "", "§fСостав блоков:"
+        add " §8• §fКварц, Мох, Обсидиан §e(10%%)" to {_l3::*}
+        add " §8• §bМорские фонари §e(10%%)" to {_l3::*}
+        add " §8• §dАметист, Призмарин §e(10%%)" to {_l3::*}
+        add " §8• §6Свет. камень, Магма §e(10%%)" to {_l3::*}
+        add " §8• §fЛед, Медн. блоки §e(10%%)" to {_l3::*}
+        add " §8• §fСтекло §e(5%%)" to {_l3::*}
+        add "" to {_l3::*}
+        add "§6Стоимость: §e35,000 ¥" to {_l3::*}
+        add "" to {_l3::*}
+        add "§e» Нажмите для покупки" to {_l3::*}
+        set slot 12 of {_gui} to sea lantern named "§e§lСтроительный бум" with lore {_l3::*}
+        
+        # 4. ЖЕЛЕЗНАЯ ЛИХОРАДКА
+        set {_l4::*} to "§7Огромные залежи чистого железа.", "", "§fСостав блоков:"
+        add " §8• §fЖелезная руда §e(50%%)" to {_l4::*}
+        add " §8• §fБлоки железа §e(20%%)" to {_l4::*}
+        add " §8• §7Камень §e(30%%)" to {_l4::*}
+        add "" to {_l4::*}
+        add "§6Стоимость: §e63,000 ¥" to {_l4::*}
+        add "" to {_l4::*}
+        add "§e» Нажмите для покупки" to {_l4::*}
+        set slot 14 of {_gui} to raw iron block named "§f§lЖелезная лихорадка" with lore {_l4::*}
+        
+        # 5. ЭПИЧЕСКАЯ (EPIC)
+        set {_l5::*} to "§7Золото и драгоценности повсюду.", "", "§fСостав блоков:"
+        add " §8• §8Сланец §e(40%%)" to {_l5::*}
+        add " §8• §eЗолотая руда §e(30%%)" to {_l5::*}
+        add " §8• §bАлмазная руда §e(20%%)" to {_l5::*}
+        add " §8• §aИзумрудная руда §e(10%%)" to {_l5::*}
+        add "" to {_l5::*}
+        add "§6Стоимость: §e80,000 ¥" to {_l5::*}
+        add "" to {_l5::*}
+        add "§e» Нажмите для покупки" to {_l5::*}
+        set slot 15 of {_gui} to gold ore named "§d§lЭпическая шахта" with lore {_l5::*}
+        
+        # 6. АЛМАЗНАЯ (ULTRA)
+        set {_l6::*} to "§bЧистые алмазы. Ничего лишнего.", "", "§fСостав блоков:"
+        add " §8• §7Глубинный сланец §e(55%%)" to {_l6::*}
+        add " §8• §bАлмазная руда §e(45%%)" to {_l6::*}
+        add "" to {_l6::*}
+        add "§6Стоимость: §e85,000 ¥" to {_l6::*}
+        add "" to {_l6::*}
+        add "§b§lЛЕГЕНДАРНЫЙ ВЫБОР" to {_l6::*}
+        add "§e» Нажмите для покупки" to {_l6::*}
+        set slot 16 of {_gui} to diamond ore named "§b§lАЛМАЗНАЯ ШАХТА" with lore {_l6::*}
+        set slot 18 of {_gui} to paper with custom model data 10184 named "§c§l« Назад"
+        open {_gui} to player
+
+on inventory click:
+    if name of event-inventory is "§8⭐ Выбор режима шахты":
+        cancel event
+        set {_u} to uuid of player
+        
+        if index of event-slot is 10:
+            set {_price} to 9000
+            set {_type} to "default"
+            set {_name} to "§fОбычную"
+        else if index of event-slot is 11:
+            set {_price} to 16000
+            set {_type} to "super"
+            set {_name} to "§6Редкую"
+        else if index of event-slot is 12:
+            set {_price} to 35000
+            set {_type} to "builder"
+            set {_name} to "§eСтроительную"
+        else if index of event-slot is 14:
+            set {_price} to 63000
+            set {_type} to "iron_rush"
+            set {_name} to "§fЖелезную"
+        else if index of event-slot is 15:
+            set {_price} to 80000
+            set {_type} to "epic"
+            set {_name} to "§dЭпическую"
+        else if index of event-slot is 16:
+            set {_price} to 85000
+            set {_type} to "ultra"
+            set {_name} to "§bАлмазную"
+        else if index of event-slot is 18:
+            execute player command "pickaxeshop"
+            stop
+        else:
+            stop
+
+        set {_raw_bal} to "%player's balance%"
+        replace all "," and "¥" and "$" and " " with "" in {_raw_bal}
+        set {_split::*} to {_raw_bal} split at "."
+        set {_final_bal} to {_split::1} parsed as number
+        
+        if {_final_bal} >= {_price}:
+            remove {_price} from player's balance
+            execute console command "automine set zxc %{_type}%"
+            
+            send "§a§lШАХТА §8» §fВы активировали %{_name}% §fшахту!" to player
+            play sound "entity.player.levelup" with volume 1 and pitch 1 to player
+            
+            if {_price} >= 80000:
+                broadcast ""
+                broadcast "  §6§lВНИМАНИЕ! §fИгрок §e%player% §fустановил режим %{_name}% §fшахты!"
+                broadcast "  §7Все бегом в шахту, время ограничено! ⛏"
+                broadcast ""
+            
+            close player's inventory
+        else:
+            send "§cНедостаточно средств!" to player
+            play sound "entity.villager.no" with volume 1 and pitch 1 to player
