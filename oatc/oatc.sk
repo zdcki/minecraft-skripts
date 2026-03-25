@@ -1,0 +1,1036 @@
+# ==========================================
+# ONE IN THE CHAMBER (GUI EDITION)
+# Server: 1.21.4 | Skript: 2.13.0
+# Requires: SkBee
+# ==========================================
+
+options:
+    prefix: &8[&6&lOITC&8]
+    win_score: 20
+    default_time: 900 # 15 минут по умолчанию (в секундах)
+    lobby_loc: location(-286.5, 119, 26.5, world "postroiki")
+    booster_loc: location(-132.5, 79, -85.5, world "postroiki")
+    start_delay: 60
+
+# ==========================================
+#  НАСТРОЙКИ И ПЕРЕМЕННЫЕ
+# ==========================================
+
+on load:
+    if {oitc::config::time} is not set:
+        set {oitc::config::time} to {@default_time}
+    if {oitc::config::arena} is not set:
+        set {oitc::config::arena} to "postroiki"
+    if {oitc::config::armor_mode} is not set:
+        set {oitc::config::armor_mode} to 1
+    if {oitc::config::win_score} is not set:
+        set {oitc::config::win_score} to 20 # Значение по умолчанию
+
+on quit:
+    if {oitc::player_team::%player%} is set:
+        # Если игрок был в игре — возвращаем вещи в базу, чтобы при следующем заходе он был с ними
+        # Или просто вызываем load, если он зайдет обратно
+        execute console command "inv load %player%"
+
+on region enter:
+    "%region%" contains "oitc_lobby"
+    
+    # --- ЛОГИКА ДЛЯ 4 СЛОТА (ЧАСЫ) ---
+    if player does not have clock named "&6&lИгровое Меню &7(ПКМ)":
+        set {_item4} to slot 4 of player
+        if {_item4} is not air:
+            set slot 4 of player to air
+            
+            # Сначала выдаем часы, чтобы занять 4-й слот!
+            set slot 4 of player to clock named "&6&lИгровое Меню &7(ПКМ)"
+            
+            # Теперь ищем любое ДРУГОЕ место для старого предмета
+            set {_rem4::*} to give or return {_item4} to player's inventory
+            
+            # Если места нет совсем — выкидываем
+            if {_rem4::*} is set:
+                wait 30 tick
+                drop {_rem4::*} at player
+                send "&7[!] Предмет из 4-го слота переложен или выброшен." to player
+        else:
+            # Если слот был пустой, просто даем часы
+            set slot 4 of player to clock named "&6&lИгровое Меню &7(ПКМ)"
+
+    # --- ЛОГИКА ДЛЯ 5 СЛОТА (ИЗУМРУД) ---
+    if player is op:
+        if player does not have emerald named "&a&lНачать игру быстро &7(ПКМ)":
+            set {_item5} to slot 5 of player
+            if {_item5} is not air:
+                set slot 5 of player to air
+                
+                # Сначала занимаем слот изумрудом
+                set slot 5 of player to emerald named "&a&lНачать игру быстро &7(ПКМ)" with lore "&7Устанавливает таймер на 5 секунд"
+                
+                # Потом возвращаем старую вещь в инвентарь
+                set {_rem5::*} to give or return {_item5} to player's inventory
+                if {_rem5::*} is set:
+                    wait 30 tick
+                    drop {_rem5::*} at player
+            else:
+                set slot 5 of player to emerald named "&a&lНачать игру быстро &7(ПКМ)" with lore "&7Устанавливает таймер на 5 секунд"
+    
+    send action bar "&aВы вошли в лобби!" to player
+# Удаление предметов при выходе
+on region leave:
+    "%region%" contains "oitc_lobby"
+    {oitc::game_running} is not true
+    remove clock named "&6&lИгровое Меню &7(ПКМ)" from player's inventory
+    remove emerald named "&a&lНачать игру быстро &7(ПКМ)" from player's inventory
+    send action bar "&cВы покинули лобби." to player
+
+# ==========================================
+# ЛОГИКА ИЗУМРУДА (БЫСТРЫЙ СТАРТ)
+# ==========================================
+
+on right click:
+    name of player's tool is "&a&lНачать игру быстро &7(ПКМ)"
+    cancel event
+    if player is not op:
+        send "{@prefix} &cТолько администратор может ускорить старт!" to player
+        stop
+    
+    if {oitc::starting} is true:
+        if {oitc::timer_val} > 5:
+            set {oitc::timer_val} to 5
+            play sound "entity.experience_orb.pickup" with volume 1 and pitch 1 to all players
+        else:
+            send "{@prefix} &eТаймер уже меньше 5 секунд!" to player
+    else:
+        send "{@prefix} &cИгра еще не в режиме ожидания (нужно минимум 2 команды в лобби)." to player
+
+
+# --- 1. БЛОКИРОВКА КОМАНД ВО ВРЕМЯ ИГРЫ ---
+on command:
+    {oitc::game_running} is true
+    sender is a player
+    # Разрешаем только админские команды и саму команду игры
+    if command is not "oitc" or "oatcvote" or "oatc_stop":
+        if player is not op:
+            cancel event
+            send "{@prefix} &cНельзя использовать команды во время боя!"
+
+# --- 2. ПОДСКАЗКИ В ТАБЕ ---
+on tab complete for "/oitc":
+    set tab completions for position 1 to "menu" and "stop"
+        
+on right click:
+    name of player's tool is "&6&lИгровое Меню &7(ПКМ)"
+    cancel event
+    open_main_menu(player)
+
+# --- Функции отображения голосов ---
+function get_armor_votes(mode: number) :: text:
+    set {_count} to 0
+    loop {oitc::voted_armor::*}:
+        if loop-value is {_mode}:
+            add 1 to {_count}
+    return "&8Голосов: &e%{_count}%"
+
+
+command /oitc [<text>]:
+    trigger:
+        if arg-1 is not set:
+            open_main_menu(player)
+        else if arg-1 is "menu":
+            set slot 4 of player to clock named "&6&lИгровое Меню &7(ПКМ)"
+            send "{@prefix} &fВы получили предмет меню!"
+        else if arg-1 is "stop":
+            if player has permission "oitc.admin" or "op":
+                stop_oitc()
+            else:
+                send "{@prefix} &cНет прав."
+
+# ==========================================
+#  СИСТЕМА GUI (МЕНЮ) - SkBee Style
+# ==========================================
+
+# В начало скрипта добавь отображение голосов
+function get_votes_list(mode: text) :: text:
+    set {_list} to ""
+    loop {oitc::voted::*}:
+        if loop-value is {_mode}:
+            set {_p} to loop-index parsed as player
+            set {_list} to "%{_list}%&7%name of {_p}%, "
+    if {_list} is "":
+        return "&8Голосов нет"
+    return "&fГолоса: &e%{_list}%"
+
+# Функция получения списка игроков в команде
+function get_team_list(team: text) :: text:
+    set {_list} to ""
+    loop {oitc::lobby::*}:
+        if loop-value is {_team}:
+            set {_p} to loop-index parsed as player
+            set {_list} to "%{_list}%&7%name of {_p}%, "
+    if {_list} is "":
+        return "&8Пусто"
+    return "&fИгроки: &e%{_list}%"
+
+
+# Обновляем главное меню, чтобы проверять право
+function open_main_menu(p: player):
+    set {_gui} to chest inventory with 3 rows named "&8Лобби OITC"
+    set slot 10 of {_gui} to leather chestplate named "&aВыбрать команду"
+    set slot 11 of {_gui} to bow named "&eГолосование за режим"
+    set slot 13 of {_gui} to iron chestplate named "&bГолосование за броню"
+    set slot 14 of {_gui} to totem of undying named "&dЭффекты при убийстве" with lore "&7Выбери, как будут умирать", "&7твои враги!"
+    
+    if {_p} has permission "oitc.admin" or "op":
+        set slot 16 of {_gui} to comparator named "&cНастройки игры"
+    else:
+        set slot 16 of {_gui} to gray dye named "&cНастройки игры"
+    open {_gui} to {_p}
+
+# Новое меню эффектов
+function open_effect_menu(p: player):
+    set {_gui} to chest inventory with 3 rows named "&8Выбор эффекта смерти"
+    set {_eff} to {oitc::effect::%{_p}%} ? "Не выбран"
+    set slot 10 of {_gui} to flint and steel named "&6Пламя" with lore "&7Твой текущий: %{oitc::effect::%{_p}%}%"
+    set slot 11 of {_gui} to brewing stand named "&dМагия ведьмы" with lore "&7Твой текущий: %{oitc::effect::%{_p}%}%"
+    set slot 12 of {_gui} to white dye named "&fОблако дыма" with lore "&7Твой текущий: %{oitc::effect::%{_p}%}%"
+    set slot 13 of {_gui} to note block named "&aМузыкальный" with lore "&7Твой текущий: %{oitc::effect::%{_p}%}%"
+    set slot 14 of {_gui} to red dye named "&cСердечки" with lore "&7Твой текущий: %{oitc::effect::%{_p}%}%"
+    set slot 15 of {_gui} to soul lantern named "&8Тьма" with lore "&7Твой текущий: %{oitc::effect::%{_p}%}%"
+    set slot 16 of {_gui} to nether star named "&bУдар молнии (эффект)" with lore "&7Твой текущий: %{oitc::effect::%{_p}%}%"
+    
+    set slot 26 of {_gui} to arrow named "&cНазад"
+    open {_gui} to {_p}
+
+
+
+function open_armor_vote(p: player):
+    set {_gui} to chest inventory with 3 rows named "&8Голосование за броню"
+    set slot 11 of {_gui} to chainmail_chestplate named "&fРежим 1: &6Нельзя снять" with lore "&7Броня заблокирована в слотах", get_armor_votes(1)
+    set slot 13 of {_gui} to leather_chestplate named "&fРежим 2: &6Можно снять" with lore "&7Игроки могут менять/снимать броню", get_armor_votes(2)
+    set slot 15 of {_gui} to barrier named "&fРежим 3: &6Без брони" with lore "&7Все игроки бегают без брони", get_armor_votes(3)
+    set slot 26 of {_gui} to arrow named "&cНазад"
+    open {_gui} to {_p}
+
+
+function open_team_selector(p: player):
+    set {_gui} to chest inventory with 3 rows named "&8Выбор команды"
+    
+    set slot 10 of {_gui} to red wool named "&cКрасная команда" with lore "&7Нажми для вступления", "" and get_team_list("Red")
+    set slot 12 of {_gui} to blue wool named "&9Синяя команда" with lore "&7Нажми для вступления", "" and get_team_list("Blue")
+    
+    # Если арена не Valorant, показываем остальные команды
+    if {oitc::config::arena} is not "valorant":
+        set slot 14 of {_gui} to green wool named "&aЗеленая команда" with lore "&7Нажми для вступления", "" and get_team_list("Green")
+        set slot 16 of {_gui} to yellow wool named "&eЖелтая команда" with lore "&7Нажми для вступления", "" and get_team_list("Yellow")
+    
+    set slot 26 of {_gui} to arrow named "&cНазад"
+    open {_gui} to {_p}
+
+function open_vote_menu(p: player):
+    set {_gui} to chest inventory with 3 rows named "&8Голосование за режим"
+
+    set {_v_bow} to {oitc::votes::bow} ? 0
+    set {_v_cb} to {oitc::votes::crossbow} ? 0
+    set {_v_ber} to {oitc::votes::berserk} ? 0
+    set {_v_tr} to {oitc::votes::trapper} ? 0
+    
+    set slot 10 of {_gui} to bow named "&6Снайпер (Лук)" with lore "&7Классический режим", "&8Всего голосов: &e%{oitc::votes::bow}%", "" and get_votes_list("bow")
+    set slot 12 of {_gui} to crossbow named "&eОхотник (Арбалет)" with lore "&7Быстрая стрельба", "&8Всего голосов: &e%{oitc::votes::crossbow}%", "" and get_votes_list("crossbow")
+    set slot 14 of {_gui} to iron axe named "&cБерсерк" with lore "&7Только ближний бой", "&8Всего голосов: &e%{oitc::votes::berserk}%", "" and get_votes_list("berserk")
+    set slot 16 of {_gui} to cobweb named "&aТраппер" with lore "&7Ловушки и паутина", "&8Всего голосов: &e%{oitc::votes::trapper}%", "" and get_votes_list("trapper")
+    
+    set slot 26 of {_gui} to arrow named "&cНазад"
+    open {_gui} to {_p}
+
+function open_admin_menu(p: player):
+    set {_gui} to chest inventory with 3 rows named "&8Настройки игры"
+    
+    # Настройка Времени
+    set {_t} to {oitc::config::time} / 60
+    set slot 10 of {_gui} to clock named "&eВремя матча: &f%{_t}% мин." with lore "&7ЛКМ: +5 мин | ПКМ: -5 мин"
+    
+    # НОВАЯ НАСТРОЙКА: Очки для победы
+    set slot 11 of {_gui} to target block named "&6Очков для победы: &f%{oitc::config::win_score}%" with lore "&7ЛКМ: +10 очков | ПКМ: -10 очков"
+    
+    set slot 12 of {_gui} to map named "&bАрена: &f%{oitc::config::arena}%" with lore "&7Нажми, чтобы сменить локацию"
+    set slot 16 of {_gui} to emerald block named "&a&lЗАПУСТИТЬ ИГРУ"
+    set slot 26 of {_gui} to arrow named "&cНазад"
+    open {_gui} to {_p}
+
+# --- Обработка кликов ---
+on inventory click:
+    if name of event-inventory contains "OITC" or "команды" or "режим" or "Настройки" or "броню" or "эффекта":
+        if event-inventory is player's inventory:
+            stop
+        cancel event
+        
+        if event-item is not set:
+            stop
+
+        # --- ЗВУК ПРИ ЛЮБОМ КЛИКЕ (Базовый) ---
+        play sound "ui.button.click" with volume 0.5 and pitch 1 to player
+        # Кнопка "Назад"
+        if index of event-slot is 26:
+            play sound "entity.item.pickup" with volume 0.6 and pitch 0.5 to player
+            open_main_menu(player)
+            stop
+        
+        # --- Логика ГЛАВНОГО МЕНЮ ---
+        if name of event-inventory is "&8Лобби OITC":
+            play sound "block.note_block.bit" with volume 0.5 and pitch 1.2 to player
+            if index of event-slot is 10:
+                open_team_selector(player)
+            else if index of event-slot is 11:
+                open_vote_menu(player)
+            else if index of event-slot is 13:
+                open_armor_vote(player)
+            else if index of event-slot is 14:
+                open_effect_menu(player)
+            else if index of event-slot is 16:
+                if player is op:
+                    play sound "block.chest.open" with volume 0.5 and pitch 1 to player
+                    open_admin_menu(player)
+                else:
+                    play sound "entity.villager.no" with volume 0.8 and pitch 1 to player
+                    send "{@prefix} &cТолько для администраторов!" to player
+
+        # Логика выбора эффекта
+        else if name of event-inventory is "&8Выбор эффекта смерти":
+            if index of event-slot is not 26:
+                play sound "entity.experience_orb.pickup" with volume 0.5 and pitch 1.5 to player
+                if index of event-slot is 10:
+                    set {oitc::effect::%player%} to "flame"
+                else if index of event-slot is 11:
+                    set {oitc::effect::%player%} to "witch"
+                else if index of event-slot is 12:
+                    set {oitc::effect::%player%} to "cloud"
+                else if index of event-slot is 13:
+                    set {oitc::effect::%player%} to "music"
+                else if index of event-slot is 14:
+                    set {oitc::effect::%player%} to "heart"
+                else if index of event-slot is 15:
+                    set {oitc::effect::%player%} to "void"
+                else if index of event-slot is 16:
+                    set {oitc::effect::%player%} to "lightning"
+                
+                send "{@prefix} &fЭффект изменен на &e%{oitc::effect::%player%}%"
+                close player's inventory
+
+        # --- Логика ВЫБОРА КОМАНДЫ ---
+        else if name of event-inventory is "&8Выбор команды":
+            set {_t} to ""
+            if index of event-slot is 10:
+                set {_t} to "Red"
+                play sound "block.note_block.bell" with volume 0.7 and pitch 0.8 to player
+            else if index of event-slot is 12:
+                set {_t} to "Blue"
+                play sound "block.note_block.bell" with volume 0.7 and pitch 1.2 to player
+            else if index of event-slot is 14:
+                set {_t} to "Green"
+                play sound "block.note_block.bell" with volume 0.7 and pitch 1.5 to player
+            else if index of event-slot is 16:
+                set {_t} to "Yellow"
+                play sound "block.note_block.bell" with volume 0.7 and pitch 1.8 to player
+            
+            if {_t} is not "":
+                set {oitc::lobby::%player%} to {_t}
+                send "{@prefix} &fВы выбрали команду: &e%{_t}%"
+                open_team_selector(player) 
+                check_start()
+
+        # --- Логика ГОЛОСОВАНИЯ ЗА РЕЖИМ ---
+        else if name of event-inventory is "&8Голосование за режим":
+            play sound "entity.arrow.hit_player" with volume 0.5 and pitch 1 to player
+            if index of event-slot is 10:
+                make player execute command "/oatcvote bow"
+            else if index of event-slot is 12:
+                make player execute command "/oatcvote crossbow"
+            else if index of event-slot is 14:
+                make player execute command "/oatcvote berserk"
+            else if index of event-slot is 16:
+                make player execute command "/oatcvote trapper"
+            wait 1 tick
+            open_vote_menu(player)
+
+        # --- Логика ГОЛОСОВАНИЯ ЗА БРОНЮ ---
+        else if name of event-inventory is "&8Голосование за броню":
+            if index of event-slot is 11 or 13 or 15:
+                play sound "item.armor.equip_iron" with volume 0.7 and pitch 1 to player
+                if index of event-slot is 11:
+                    set {oitc::voted_armor::%player%} to 1
+                else if index of event-slot is 13:
+                    set {oitc::voted_armor::%player%} to 2
+                else if index of event-slot is 15:
+                    set {oitc::voted_armor::%player%} to 3
+                
+                send "{@prefix} &fГолос принят!"
+                open_armor_vote(player)
+
+        # --- Логика НАСТРОЕК (АДМИН) ---
+        else if name of event-inventory is "&8Настройки игры":
+            play sound "block.iron_trapdoor.open" with volume 0.4 and pitch 1.5 to player
+            if index of event-slot is 12:
+                if {oitc::config::arena} is "postroiki":
+                    set {oitc::config::arena} to "valorant"
+                else:
+                    set {oitc::config::arena} to "postroiki"
+                send "{@prefix} &fАрена изменена на: &e%{oitc::config::arena}%"
+                open_admin_menu(player)
+            if index of event-slot is 11: 
+                play sound "ui.toast.out" with volume 0.3 and pitch 2 to player
+                if click type is left mouse button:
+                    add 10 to {oitc::config::win_score}
+                else if click type is right mouse button:
+                    remove 10 from {oitc::config::win_score}
+                # Лимиты
+                if {oitc::config::win_score} > 100:
+                    set {oitc::config::win_score} to 100
+                if {oitc::config::win_score} < 10:
+                    set {oitc::config::win_score} to 10
+                open_admin_menu(player)
+            if index of event-slot is 10:
+                play sound "ui.toast.in" with volume 0.3 and pitch 2 to player
+                if click type is left mouse button:
+                    add 300 to {oitc::config::time}
+                else if click type is right mouse button:
+                    remove 300 from {oitc::config::time}
+                # Ограничения
+                if {oitc::config::time} > 1800:
+                    set {oitc::config::time} to 1800
+                if {oitc::config::time} < 300:
+                    set {oitc::config::time} to 300
+                open_admin_menu(player)
+            
+            else if index of event-slot is 16:
+                play sound "entity.firework_rocket.launch" with volume 0.8 and pitch 1 to player
+                close inventory of player
+                start_countdown()
+# ==========================================
+#  ОСНОВНАЯ ЛОГИКА ИГРЫ (OITC)
+# ==========================================
+
+# --- Координаты баз ---
+function get_spawn(t: text) :: location:
+    if {oitc::config::arena} is "valorant":
+        if {_t} is "Blue":
+            return location(-190.5, 132, 178.5, world "postroiki", 45, 0)
+        if {_t} is "Red":
+            return location(-266.5, 132, 192.5, world "postroiki", -135, 0)
+    # Здесь можно добавить проверку if {oitc::config::arena} is "Arena2"...
+    if {_t} is "Yellow":
+        return location(-132.5, 76, -61.5, world "postroiki", 180,0)
+    if {_t} is "Green":
+        return location(-157.5, 76, -86.5, world "postroiki",-90,0)
+    if {_t} is "Blue":
+        return location(-132.5, 76, -110.5, world "postroiki",0,0)
+    if {_t} is "Red":
+        return location(-108.5, 76, -85.5, world "postroiki",90,0)
+    return {@lobby_loc}
+
+# --- Отключение голода ---
+on food level change:
+    {oitc::game_running} is true
+    set food level of player to 20
+    cancel event
+
+# --- Глобальные переменные для голосования ---
+function reset_votes():
+    delete {oitc::votes::*}
+    set {oitc::votes::bow} to 0
+    set {oitc::votes::crossbow} to 0
+    set {oitc::votes::berserk} to 0
+    set {oitc::votes::trapper} to 0
+
+# --- Команда голосования ---
+command /oatcvote <text>:
+    trigger:
+        if {oitc::lobby::%player%} is not set:
+            send "{@prefix} &cСначала выберите команду в меню!"
+            stop
+        
+        if arg-1 is "bow" or "crossbow" or "berserk" or "trapper":
+            # Если игрок уже голосовал, вычитаем его предыдущий голос
+            if {oitc::voted::%player%} is set:
+                set {_old} to {oitc::voted::%player%}
+                if {oitc::votes::%{_old}%} > 0:
+                    remove 1 from {oitc::votes::%{_old}%}
+            
+            # Записываем новый голос
+            add 1 to {oitc::votes::%arg-1%}
+            set {oitc::voted::%player%} to arg-1 # Храним название режима, за который проголосовал
+            send "{@prefix} &fВаш голос за &e%arg-1% &fпринят!"
+
+# --- Логика паутины для Траппера ---
+on projectile hit:
+    {oitc::game_running} is true
+    {oitc::global_kit} is "trapper"
+    projectile is an arrow
+    victim is not set
+    set {_loc} to location of projectile
+    if block at {_loc} is air:
+        delete projectile
+        set block at {_loc} to cobweb
+        play sound "block.conduit.attack.target" with volume 0.5 and pitch 2 at {_loc}
+        wait 3 seconds
+        set block at {_loc} to air
+
+# --- Удаление стрел через 5 секунд ---
+on shoot:
+    {oitc::game_running} is true
+    set {_p} to projectile
+    wait 5 seconds
+    kill {_p}
+
+function spawn_booster():
+    {oitc::game_running} is true
+    
+    # Проверка на наличие уже лежащего бустера
+    loop dropped items in world "postroiki":
+        if item of loop-dropped item is nether star:
+            stop
+    
+    # Список из всех 4 позиций, которые ты скинул
+    add location(-120.5, 76, -87.5, world "postroiki") to {_locs::*}
+    add location(-133.5, 76, -73.5, world "postroiki") to {_locs::*}
+    add location(-134.5, 76, -100.5, world "postroiki") to {_locs::*}
+    add location(-147.5, 76, -86.5, world "postroiki") to {_locs::*}
+    
+    set {_final_loc} to random element of {_locs::*}
+    
+    chance of 70%:
+        drop 1 nether star named "&b&lБУСТЕР" at {_final_loc} without velocity
+        play sound "block.beacon.activate" with volume 0.5 and pitch 2 at {_final_loc}
+        # Визуальный эффект появления
+        play 20 totem of undying at {_final_loc}
+
+every 20 seconds:
+    spawn_booster()
+
+on pick up of nether star:
+    {oitc::game_running} is true
+    cancel event
+    delete dropped item
+    
+    set {_p} to player
+    play sound "entity.experience_orb.pickup" with volume 1 and pitch 1 to {_p}
+    
+    set {_rnd} to random integer between 1 and 4
+    if {_rnd} is 1:
+        apply speed 2 to {_p} for 12 seconds
+        set {_n} to "&b&lСкорость II"
+        set {_d} to 12
+        set {_c} to "blue"
+    else if {_rnd} is 2:
+        apply jump boost 2 to {_p} for 12 seconds
+        set {_n} to "&a&lПрыгучесть II"
+        set {_d} to 12
+        set {_c} to "green"
+    else if {_rnd} is 3:
+        apply strength 1 to {_p} for 8 seconds
+        set {_n} to "&c&lСила I (Ваншот)"
+        set {_d} to 8
+        set {_c} to "red"
+    else if {_rnd} is 4:
+        set {_n} to "&e&lРАДАР (Свечение врагов)"
+        set {_d} to 5
+        set {_c} to "yellow"
+        loop all players:
+            if {oitc::player_team::%loop-player%} is set:
+                if {oitc::player_team::%loop-player%} is not {oitc::player_team::%{_p}%}:
+                    apply glowing 1 to loop-player for 5 seconds
+        play sound "entity.iron_golem.repair" with volume 1 and pitch 2 to {_p}
+        
+    show_booster_bar({_p}, {_n}, {_d}, {_c})
+
+function show_booster_bar(p: player, name: text, duration: number, color: text):
+    set {_id} to "oitc_%uuid of {_p}%"
+    delete boss bar with id {_id}
+    set {_bar} to boss bar with id {_id} with title "%{_name}% &8| &f%{_duration}% сек."
+    if {_color} is "blue":
+        set bar color of {_bar} to blue
+    else if {_color} is "green":
+        set bar color of {_bar} to green
+    else if {_color} is "red":
+        set bar color of {_bar} to red
+    else:
+        set bar color of {_bar} to yellow
+        
+    set bar progress of {_bar} to 100
+    add {_p} to bar players of {_bar}
+    
+    set {_timer} to {_duration}
+    set {_step} to 100 / {_duration}
+    
+    loop {_duration} times:
+        if {oitc::game_running} is not true:
+            delete boss bar with id {_id}
+            stop
+        
+        wait 1 second
+        remove 1 from {_timer}
+        
+        set {_current_progress} to {_timer} * {_step}
+        set bar progress of {_bar} to {_current_progress}
+        set bar title of {_bar} to "%{_name}% &8| &f%{_timer}% сек."
+        
+        if {_p} is not online:
+            delete boss bar with id {_id}
+            stop
+
+    delete boss bar with id {_id}
+
+# --- ВЫДАЧА КИТА (С УЧЕТОМ ГОЛОСОВАНИЯ) ---
+function give_kit(p: player):
+    clear {_p}'s inventory
+    apply invisibility 1 without particles to {_p} for 999 days
+    set {_t} to {oitc::player_team::%{_p}%}
+    set food level of {_p} to 20
+    
+    # Режим 3: Без брони вообще
+    if {oitc::active_armor_mode} is not 3:
+        if {_t} is "Red":
+            set {_color} to red
+        else if {_t} is "Blue":
+            set {_color} to blue
+        else if {_t} is "Green":
+            set {_color} to green
+        else if {_t} is "Yellow":
+            set {_color} to yellow
+        
+        set slot 39 of {_p} to leather helmet
+        set slot 38 of {_p} to leather chestplate
+        set slot 37 of {_p} to leather leggings
+        set slot 36 of {_p} to leather boots
+        dye {_p}'s helmet {_color}
+        dye {_p}'s chestplate {_color}
+        dye {_p}'s leggings {_color}
+        dye {_p}'s boots {_color}
+    
+    set slot 0 of {_p} to stone sword named "&fМеч Охотника"
+    set slot 8 of {_p} to 1 arrow named "&7Боезапас"
+
+    if {oitc::global_kit} is "crossbow":
+        set slot 1 of {_p} to unbreakable crossbow named "&eСкорострельный арбалет"
+        
+    else if {oitc::global_kit} is "berserk":
+        set slot 1 of {_p} to unbreakable iron axe named "&cТопор Берсерка"
+        remove 1 arrow from {_p}
+        
+    else if {oitc::global_kit} is "trapper":
+        set {_i} to unbreakable bow named "&aЛук Траппера"
+        enchant {_i} with infinity 1
+        set slot 1 of {_p} to {_i}
+        
+    else: 
+        set {_i} to unbreakable bow named "&6Снайперский лук"
+        enchant {_i} with infinity 1
+        set slot 1 of {_p} to {_i}
+
+on pick up of arrow:
+    {oitc::game_running} is true
+    {oitc::player_team::%player%} is set
+    cancel event
+
+# Блокировка снятия брони (Режим 1: Нельзя снять)
+on inventory click:
+    if {oitc::game_running} is true:
+        if {oitc::active_armor_mode} is 1:
+            # Слоты брони в майнкрафте: 36, 37, 38, 39
+            if index of event-slot is 36, 37, 38 or 39:
+                cancel event
+            # Запрещаем также Shift+Click по броне в инвентаре, чтобы её не надеть/снять
+            if click type is left mouse button with shift or right mouse button with shift:
+                if "%event-item%" contains "helmet", "chestplate", "leggings" or "boots":
+                    cancel event
+
+
+
+
+on right click:
+    {oitc::game_running} is true
+    if player's tool is a crossbow:
+        if name of player's tool contains "Скорострельный":
+            cancel event
+            make player shoot an arrow at speed 3
+            play sound "entity.arrow.shoot" with volume 1 and pitch 1 to player
+            wait 1 tick
+            set {_crossbow} to unbreakable crossbow named "&eСкорострельный арбалет"
+            set charged projectiles of {_crossbow} to arrow
+            set slot 1 of player to {_crossbow}
+
+# --- Урон и Убийства ---
+on damage of player:
+    {oitc::game_running} is true
+    attacker is a player
+    cancel event
+    set {_v} to victim
+    set {_a} to attacker
+    
+    if {oitc::player_team::%{_a}%} is {oitc::player_team::%{_v}%}:
+        stop
+
+    if damage cause is projectile:
+        execute_kill({_a}, {_v}, "&6Стрелой")
+        stop
+
+    if attacker's tool is stone sword or iron axe:
+        if {oitc::global_kit} is "berserk":
+            execute_kill({_a}, {_v}, "&cТопором/Мечом")
+            stop
+            
+        if {_a} has strength:
+            execute_kill({_a}, {_v}, "&c&lСИЛОЙ")
+            stop
+            
+        add 1 to {oitc::hits::%{_v}%}
+        if {oitc::hits::%{_v}%} < 2:
+            play sound "entity.player.attack.sweep" with volume 0.5 and pitch 1.5 to {_a}
+            send action bar "&cПервый удар!" to {_a}
+        else:
+            execute_kill({_a}, {_v}, "&fМечом")
+        stop
+
+function execute_kill(a: player, v: player, item: text):
+    set {_loc} to location of {_v}
+    add 1 to y-coordinate of {_loc}
+
+    # --- 3. ВЫБРАННЫЙ ЭФФЕКТ УБИЙЦЫ (ИЗ МЕНЮ) ---
+    set {_eff} to {oitc::effect::%{_a}%}
+    
+    if {_eff} is "lightning":
+        strike lightning effect at {_loc}
+        loop 30 times:
+            set {_temp} to {_loc}
+            add random number between -0.8 and 0.8 to x-coordinate of {_temp}
+            add random number between 0 and 1.5 to y-coordinate of {_temp}
+            add random number between -0.8 and 0.8 to z-coordinate of {_temp}
+            play 1 electric spark at {_temp}
+
+    else if {_eff} is "flame":
+        loop 50 times:
+            set {_temp} to {_loc}
+            add random number between -0.5 and 0.5 to x-coordinate of {_temp}
+            add random number between 0 and 1.2 to y-coordinate of {_temp}
+            add random number between -0.5 and 0.5 to z-coordinate of {_temp}
+            play lava pop at {_temp}
+
+    else if {_eff} is "heart":
+        loop 15 times:
+            set {_temp} to {_loc}
+            add random number between -0.6 and 0.6 to x-coordinate of {_temp}
+            add random number between 0.5 and 1.5 to y-coordinate of {_temp}
+            add random number between -0.6 and 0.6 to z-coordinate of {_temp}
+            play 1 heart at {_temp}
+
+    else if {_eff} is "cloud":
+        loop 40 times:
+            set {_temp} to {_loc}
+            add random number between -0.7 and 0.7 to x-coordinate of {_temp}
+            add random number between 0 and 1 to y-coordinate of {_temp}
+            play 1 cloud at {_temp}
+
+    # НОВЫЙ ЭФФЕКТ: ВЕДЬМА (ФИОЛЕТОВЫЙ)
+    else if {_eff} is "witch":
+        loop 50 times:
+            set {_temp} to {_loc}
+            add random number between -0.5 and 0.5 to x-coordinate of {_temp}
+            play 1 witch spell at {_temp}
+
+    # НОВЫЙ ЭФФЕКТ: МУЗЫКА
+    else if {_eff} is "music":
+        loop 20 times:
+            set {_temp} to {_loc}
+            add random number between -0.5 and 0.5 to x-coordinate of {_temp}
+            add random number between 0.5 and 2 to y-coordinate of {_temp}
+            play 1 note at {_temp}
+
+    # НОВЫЙ ЭФФЕКТ: ТЬМА (СКОВАННЫЕ ДУШИ)
+    else if {_eff} is "void":
+        loop 60 times:
+            set {_temp} to {_loc}
+            add random number between -0.4 and 0.4 to x-coordinate of {_temp}
+            play 1 soul at {_temp}
+            play 1 large smoke at {_temp}
+
+    # --- ЛОГИКА СМЕРТИ (ЗВУКИ И КИЛЛЫ) ---
+    play sound "entity.skeleton.converted_to_stray" with volume 0.8 and pitch 1.2 at {_loc}
+    # ... (далее ваш код с очками и телепортацией)
+    
+    set {_diff} to difference between {oitc::last_kill::%{_a}%} and now
+    if {_diff} < 10 seconds:
+        play sound "entity.lighting_bolt.thunder" with volume 0.5 and pitch 2 to {_a}
+        send action bar "&e&lDOUBLE KILL!" to {_a}
+    set {oitc::last_kill::%{_a}%} to now
+
+    play sound "block.note_block.chime" with volume 1 and pitch 2 to {_a}
+    # Определяем цвета команд для чата
+    set {_color_a} to "&f" # По умолчанию белый
+    if {oitc::player_team::%{_a}%} is "Red":
+        set {_color_a} to "&c"
+    else if {oitc::player_team::%{_a}%} is "Blue":
+        set {_color_a} to "&9"
+    else if {oitc::player_team::%{_a}%} is "Green":
+        set {_color_a} to "&a"
+    else if {oitc::player_team::%{_a}%} is "Yellow":
+        set {_color_a} to "&e"
+
+    set {_color_v} to "&f"
+    if {oitc::player_team::%{_v}%} is "Red":
+        set {_color_v} to "&c"
+    else if {oitc::player_team::%{_v}%} is "Blue":
+        set {_color_v} to "&9"
+    else if {oitc::player_team::%{_v}%} is "Green":
+        set {_color_v} to "&a"
+    else if {oitc::player_team::%{_v}%} is "Yellow":
+        set {_color_v} to "&e"
+
+    # Вывод сообщения с цветными никами
+    loop all players in world "postroiki":
+        send "&8[&6&lOITC&8] %{_color_a}%%{_a}% &fубил(а) &7[%{_item}%&7] %{_color_v}%%{_v}%" to loop-player
+    
+    # ... (далее начисление очков и проверка победы) ...
+    
+    add 1 to {oitc::score::%{_a}%}
+    add 1 to {oitc::team_score::%{oitc::player_team::%{_a}%}%}
+    add 1 to {oitc::streak::%{_a}%}
+    delete {oitc::streak::%{_v}%}
+    delete {oitc::hits::%{_v}%}
+    
+    set {_check} to {oitc::streak::%{_a}%} mod 5
+    if {_check} is 0:
+        if {oitc::streak::%{_a}%} > 0:
+            give 1 egg named "&f&lОСЛЕПЛЯЮЩАЯ ГРАНАТА" to {_a}
+            send title "&6&lСЕРИЯ: %{oitc::streak::%{_a}%}% УБИЙСТВ!" with subtitle "&fВы получили &eГранату&f!" to {_a} for 2 seconds
+            play sound "entity.item.pickup" with volume 1 and pitch 0.5 to {_a}
+
+    if {oitc::team_score::%{oitc::player_team::%{_a}%}%} >= {@win_score}:
+        announce_winner({oitc::player_team::%{_a}%})
+        stop_oitc()
+        stop
+    # Внутри execute_kill после add 1 to {oitc::team_score...}
+    if {oitc::team_score::%{oitc::player_team::%{_a}%}%} >= {oitc::config::win_score}:
+        announce_winner({oitc::player_team::%{_a}%})
+        stop_oitc()
+        stop
+        
+    teleport {_v} to get_spawn({oitc::player_team::%{_v}%})
+    give_kit({_v})
+
+# --- Граната ---
+on projectile hit:
+    projectile is an egg
+    {oitc::game_running} is true
+    set {_shooter} to shooter
+    set {_loc} to location of projectile
+    play sound "entity.generic.explode" with volume 0.8 and pitch 1.5 at {_loc}
+    
+    loop all players in radius 4 around {_loc}:
+        if loop-player is not {_shooter}:
+            if {oitc::player_team::%loop-player%} is not {oitc::player_team::%{_shooter}%}:
+                apply blindness 1 to loop-player for 4 seconds
+                apply slowness 2 to loop-player for 4 seconds
+                send action bar "&c&lВАС ОСЛЕПИЛИ!" to loop-player
+                play sound "entity.bat.death" with volume 1 and pitch 0.5 to loop-player
+
+# --- Игровой цикл ---
+every 2 minute:
+    if {oitc::game_running} is true:
+        set {_max} to 0
+        loop all players:
+            if {oitc::player_team::%loop-player%} is set:
+                if {oitc::score::%loop-player%} > {_max}:
+                    set {_max} to {oitc::score::%loop-player%}
+                    set {_leader} to loop-player
+        if {_leader} is set:
+            apply glowing 1 to {_leader} for 10 seconds
+            loop all players in world "postroiki":
+                send "{@prefix} &6&l%{_leader}% &fлидирует! Его видно сквозь стены 10 секунд!" to loop-player
+
+every 1 second:
+    if {oitc::game_running} is true:
+        set {_elapsed} to difference between {oitc::start_time} and now
+        # Используем переменную конфига времени
+        set {_total_seconds} to {oitc::config::time} - (floor(seconds of {_elapsed}))
+        
+        if {_total_seconds} <= 10:
+            play sound "block.note_block.bit" with volume 1 and pitch (1 + (0.1 * (10 - {_total_seconds}))) to all players
+        
+        if {_total_seconds} <= 0:
+            set {_max} to -1
+            set {_winner} to "Ничья"
+            loop "Red", "Blue", "Green" and "Yellow":
+                set {_score} to {oitc::team_score::%loop-value%}
+                if {_score} > {_max}:
+                    set {_max} to {_score}
+                    set {_winner} to loop-value
+                else if {_score} is {_max}:
+                    if {_max} > 0:
+                        set {_winner} to "Ничья"
+            announce_winner({_winner})
+            stop_oitc()
+            stop
+
+        set {_m} to floor({_total_seconds} / 60)
+        set {_s} to {_total_seconds} mod 60
+        if {_s} < 10:
+            set {_time_str} to "%{_m}%:0%{_s}%"
+        else:
+            set {_time_str} to "%{_m}%:%{_s}%"
+
+        loop all players:
+            if {oitc::player_team::%loop-player%} is set:
+                set {_k} to {oitc::score::%loop-player%} ? 0
+                set {_r} to {oitc::team_score::Red} ? 0
+                set {_b} to {oitc::team_score::Blue} ? 0
+                set {_g} to {oitc::team_score::Green} ? 0
+                set {_y} to {oitc::team_score::Yellow} ? 0
+                send action bar "&fКиллы: &a%{_k}% &8| &cR:%{_r}% &9B:%{_b}% &aG:%{_g}% &eY:%{_y}% &8| &7⌛ %{_time_str}%" to loop-player
+
+# --- Лобби и Старт (Обновлено под GUI) ---
+# Убраны "on region enter", теперь всё через GUI
+
+function count_lobby_teams() :: number:
+    delete {_t::*}
+    loop {oitc::lobby::*}:
+        set {_t::%loop-value%} to true
+    return size of {_t::*}
+function check_start():
+    if {oitc::game_running} is true:
+        stop
+    if {oitc::starting} is true:
+        stop
+    if count_lobby_teams() >= 2:
+        start_countdown()
+
+function start_countdown():
+    if {oitc::starting} is true:
+        stop
+    set {oitc::starting} to true
+    
+    # Устанавливаем начальное время 60 секунд
+    set {oitc::timer_val} to 60
+    
+    while {oitc::timer_val} > 0:
+        if {oitc::starting} is not set:
+            stop
+        
+        if count_lobby_teams() < 2:
+            loop all players in world "postroiki":
+                send "{@prefix} &cСтарт отменен. Недостаточно команд." to loop-player
+            delete {oitc::starting}
+            delete {oitc::timer_val}
+            stop 
+            
+        loop all players:
+            if {oitc::lobby::%loop-player%} is set:
+                set {_vb} to {oitc::votes::bow} ? 0
+                set {_vc} to {oitc::votes::crossbow} ? 0
+                set {_vbe} to {oitc::votes::berserk} ? 0 
+                set {_vt} to {oitc::votes::trapper} ? 0 
+                
+                # Отображаем текущее значение глобального таймера
+                send action bar "&fСтарт через: &e%{oitc::timer_val}% &8| &6B:%{_vb}% &eC:%{_vc}% &cB:%{_vbe}% &aT:%{_vt}%" to loop-player 
+                
+                if {oitc::timer_val} <= 3:
+                    play sound "block.note_block.pling" with volume 1 and pitch 1.5 to loop-player
+       
+        wait 1 second
+        remove 1 from {oitc::timer_val}
+    
+# Когда таймер дошел до 0
+    if {oitc::starting} is true:
+        delete {oitc::timer_val}
+        # Определяем победивший режим
+        set {_max} to -1
+        set {oitc::global_kit} to "bow"
+        loop "bow", "crossbow", "berserk" and "trapper":
+            if {oitc::votes::%loop-value%} > {_max}:
+                set {_max} to {oitc::votes::%loop-value%}
+                set {oitc::global_kit} to loop-value
+        
+        loop all players in world "postroiki":
+            send "{@prefix} &fПобедил режим: &e&l%{oitc::global_kit}%" to loop-player
+        start_game()
+
+# --- ЛОГИКА СТАРТА (ПОДСЧЕТ ГОЛОСОВ) ---
+function start_game():
+    delete {oitc::starting}
+    set {oitc::game_running} to true
+    set {oitc::start_time} to now
+    
+    # Считаем голоса за броню
+    set {_v1} to 0
+    set {_v2} to 0
+    set {_v3} to 0
+    loop {oitc::voted_armor::*}:
+        if loop-value is 1:
+            add 1 to {_v1}
+        else if loop-value is 2:
+            add 1 to {_v2}
+        else if loop-value is 3:
+            add 1 to {_v3}
+    
+    if {_v3} > {_v1} and {_v2}:
+        set {oitc::active_armor_mode} to 3
+    else if {_v2} > {_v1} and {_v3}:
+        set {oitc::active_armor_mode} to 2
+    else:
+        set {oitc::active_armor_mode} to 1
+    
+    loop all players in world "postroiki":
+        send "{@prefix} &fРежим брони на этот матч: &e&l%{oitc::active_armor_mode}%" to loop-player
+    
+    loop all players:
+        if {oitc::lobby::%loop-player%} is set:
+            # --- ВСТАВЛЯЕМ СЮДА ---
+            execute console command "inv save %loop-player%" 
+            # ----------------------
+            clear loop-player's inventory
+            set {oitc::player_team::%loop-player%} to {oitc::lobby::%loop-player%}
+            give_kit(loop-player)
+            teleport loop-player to get_spawn({oitc::player_team::%loop-player%})
+
+function announce_winner(team: text):
+    broadcast "{@prefix} &fКоманда &l%{_team}% &fПОБЕДИЛА!"
+    loop all players:
+        send title "&6ПОБЕДА!" with subtitle "&fКоманда %{_team}% выиграла!" to loop-player for 5 seconds
+
+# --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ОСТАНОВКИ ---
+function stop_oitc():
+    set {oitc::game_running} to false
+    
+    # Полная очистка очков (то, что у тебя не работало)
+    delete {oitc::score::*}
+    delete {oitc::team_score::*}
+    delete {oitc::hits::*}
+    
+    delete {oitc::votes::*}
+    delete {oitc::voted::*}
+    delete {oitc::voted_armor::*}
+    delete {oitc::starting}
+    delete {oitc::start_time}
+    
+    # Удаление бустеров
+    loop dropped items in world "postroiki":
+        if item of loop-dropped item is nether star:
+            delete loop-dropped item
+    
+    loop all players:
+        if {oitc::player_team::%loop-player%} is set:
+            clear loop-player's inventory
+            execute console command "inv load %loop-player%"
+            # ----------------------
+            delete {oitc::player_team::%loop-player%}
+            remove invisibility from loop-player
+            remove speed from loop-player
+            delete boss bar with id "oitc_%uuid of loop-player%"
+            delete {oitc::player_team::%loop-player%}
+            delete {oitc::lobby::%loop-player%}
+            delete {oitc::streak::%loop-player%}
+            teleport loop-player to {@lobby_loc}
+            set slot 4 of loop-player to clock named "&6&lИгровое Меню &7(ПКМ)"
+
+command /oatc_stop:
+    permission: op
+    trigger:
+        stop_oitc()
