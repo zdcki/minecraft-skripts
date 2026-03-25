@@ -1,4 +1,3 @@
-markdown
 
 # OITC: One In The Chamber (GUI Edition)
 
