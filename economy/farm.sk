@@ -1,0 +1,296 @@
+options:
+    region_name: potat
+    base_reward: 500         
+    exchange_cost: 100
+
+
+
+# --- СИСТЕМА ДИНАМИЧЕСКИХ ЦЕН ---
+every 1 seconds:
+    remove 1 from {farm_timer}
+    if {farm_timer} <= 0:
+        set {potato_market_multiplier} to random number between 0.8 and 1.5
+        
+        set {farm_timer} to 600 # Сброс на 10 минут
+        broadcast "&6&l「ФЕРМА」 &fЦена изменилась! Текущий курс: &e%{potato_market_multiplier}% &7(/warp farm)"
+
+on load:
+    if {potato_market_multiplier} is not set:
+        set {potato_market_multiplier} to 1.0
+
+# --- КОМАНДА ИНФО ---
+command /farm:
+    trigger:
+        if {potato_max_storage::%player's uuid%} is not set:
+            set {potato_max_storage::%player's uuid%} to 100
+        send "&8&m      &6&l ФЕРМА &8&m      "
+        send "&fТекущий курс цен: &e%{potato_market_multiplier}%x"
+        send "&fВаша корзина: &e%{potato_balance::%player's uuid%}%&7/&e%{potato_max_storage::%player's uuid%}%"
+        send "&fУровень корзины: &a%{potato_storage_lvl::%player's uuid%} ? 1%"
+        send "&7Улучшить объем можно через &e/upgradebasket"
+        send "&8&m                      "
+
+# --- ПРОКАЧКА КОРЗИНЫ ---
+command /upgradebasket:
+    trigger:
+        if {potato_storage_lvl::%player's uuid%} is not set:
+            set {potato_storage_lvl::%player's uuid%} to 1
+        set {_price} to {potato_storage_lvl::%player's uuid%} * 2000
+        set {_bal} to player's balance
+        if {_bal} >= {_price}:
+            execute console command "eco take %player% %{_price}%"
+            add 1 to {potato_storage_lvl::%player's uuid%}
+            add 50 to {potato_max_storage::%player's uuid%}
+            send "&a&l「❕」 &fВы улучшили корзину до &e%{potato_storage_lvl::%player's uuid%}% уровня!"
+            play sound "entity.villager.celebrate"
+        else:
+            send "&c「❕」Недостаточно денег! Нужно &e¥%{_price}%"
+
+# --- УСКОРЕННЫЙ РОСТ ---
+every 8 seconds:
+    loop all blocks in region "{@region_name}":
+        if loop-block is potatoes or carrots or wheat or beetroots:
+            set {_age} to age of loop-block
+            
+            set {_max} to 7
+            if loop-block is beetroots:
+                set {_max} to 3
+            
+            if {_age} < {_max}:
+                set age of loop-block to ({_age} + 1)
+                if chance of 10%:
+                    show happy villager at loop-block # Вот тут была ошибка в "block"
+
+# --- МЕХАНИКА СБОРА ---
+on break:
+    if "%region at event-block%" contains "{@region_name}":
+        cancel event
+        
+        if player's tool is not wooden hoe or stone hoe or iron hoe or golden hoe or diamond hoe or netherite hoe:
+            send action bar "&c「❕」Урожай можно собирать только мотыгой!" to player
+            stop
+        # Проверяем, является ли блок растением
+        if event-block is not potatoes:
+            if event-block is not carrots:
+                if event-block is not wheat:
+                    if event-block is not beetroots:
+                        stop
+
+        if {potato_max_storage::%player's uuid%} is not set:
+            set {potato_max_storage::%player's uuid%} to 100
+
+        # Определяем стадию созревания
+        set {_max} to 7
+        if event-block is beetroots:
+            set {_max} to 3
+            
+        if age of event-block is {_max}:
+            if {potato_balance::%player's uuid%} >= {potato_max_storage::%player's uuid%}:
+                send action bar "&c「❕」Корзина полна!" to player
+                stop
+
+            # ВРЕДИТЕЛИ
+            if chance of 3%:
+                if chance of 10%:
+                    spawn zombie at event-block
+                    set name of last spawned entity to "&c&lВор урожая"
+                else:
+                    spawn silverfish at event-block
+                    set name of last spawned entity to "&c&lВредитель" # Добавь эту строку
+                    send "&c&l⚠ &cВредитель!" to player
+                stop
+
+            # НАЧИСЛЕНИЕ
+            set {_amount} to 1
+            set {_icon} to "🥔"
+            
+            if event-block is beetroots:
+                if chance of 20%:
+                    set {_amount} to 10
+                    set {_icon} to "&d&lСВЕКЛА"
+                    send action bar "&d&l⚡ РЕДКАЯ СВЕКЛА! +10" to player
+                    play sound "entity.experience_orb.pickup"
+                else:
+                    set {_amount} to 1
+                    set {_icon} to "&dСвекла"
+            
+            # Бонус золотого урожая
+            if chance of 5%:
+                add 4 to {_amount}
+                send action bar "&6&l⭐ ЗОЛОТОЙ УРОЖАЙ! +5" to player
+
+            # --- ВОТ ТУТ ГЛАВНОЕ ИЗМЕНЕНИЕ ---
+            add {_amount} to {potato_balance::%player's uuid%}
+            add {_amount} to {potato_total_collected::%player's uuid%} # Добавляем в общую стату
+            # ---------------------------------
+            
+            # Визуал полоски
+            set {_percent} to ({potato_balance::%player's uuid%} / {potato_max_storage::%player's uuid%}) * 10
+            set {_bar} to ""
+            loop 10 times:
+                if loop-number <= {_percent}:
+                    set {_bar} to "%{_bar}%&a■"
+                else:
+                    set {_bar} to "%{_bar}%&7■"
+            
+            send action bar "&a+%{_amount}% %{_icon}% &8| &fКорзина: &e%{potato_balance::%player's uuid%}%&7/&e%{potato_max_storage::%player's uuid%}% &8[ %{_bar}% &8]" to player
+            
+# --- СИСТЕМА ПРИНУДИТЕЛЬНОГО ПЕРЕРОЖДЕНИЯ ---
+            set {_random_seed} to random integer between 1 and 100
+            set {_loc} to location of event-block # Запоминаем точку координат
+            
+            # Ждем 2 тика, чтобы сервер успел вернуть картошку на место
+            wait 2 ticks
+            
+            # Насильно стираем то, что там появилось (картошку)
+            set block at {_loc} to air
+            
+            # Ставим новый блок по координатам
+            if {_random_seed} <= 40:
+                set block at {_loc} to potatoes
+            else if {_random_seed} <= 70:
+                set block at {_loc} to carrots
+            else if {_random_seed} <= 90:
+                set block at {_loc} to wheat
+            else:
+                set block at {_loc} to beetroots
+            
+            # Устанавливаем возраст новой грядки
+            set age of block at {_loc} to 0
+            
+            # Финальный звук
+            play sound "block.crop.break" with volume 0.4 at {_loc}
+        else:
+            send action bar "&c「❕」Еще растет..." to player
+# --- ПРОДАЖА ---
+# --- ПРОДАЖА ВСЕГО УРОЖАЯ ---
+command /sellpotato:
+    trigger:
+        set {_count} to {potato_balance::%player's uuid%}
+        
+        # Проверка минимального порога
+        if {_count} >= 100:
+            # Считаем цену за 1 единицу урожая
+            # Базовая награда 500 за 100 шт = 5 за 1 шт.
+            set {_price_per_one} to {@base_reward} / 100
+            
+            # Общая сумма: количество * цена_за_1 * множитель курса
+            set {_total_reward} to {_count} * {_price_per_one} * {potato_market_multiplier}
+            
+            # Очищаем корзину и выдаем деньги
+            set {potato_balance::%player's uuid%} to 0
+            execute console command "eco give %player% %{_total_reward}%"
+            
+            # Уведомление
+            send "&a&l「❕」 &fВы продали весь урожай: &e%{_count}% шт."
+            send "&fПолучено: &a¥%{_total_reward}% &7(Курс: %{potato_market_multiplier}%x)"
+            play sound "entity.player.levelup" with volume 0.5
+        else:
+            send "&c「❕」В корзине должно быть минимум 100 шт. для продажи! &7(У вас: %{_count} ? 0%)"
+import:
+    java.util.TreeMap
+    java.util.Collections
+
+# ЕДИНЫЙ БЛОК ПЛЕЙСХОЛДЕРОВ
+placeholderapi placeholder with the prefix "farm":
+    set {_id} to the identifier
+    
+    # Стандартные плейсхолдеры
+    if {_id} is "multiplier":
+        set the result to "%{potato_market_multiplier}%"
+    if {_id} is "balance":
+        set the result to "%{potato_balance::%player's uuid%} ? 0%"
+    if {_id} is "max_storage":
+        set the result to "%{potato_max_storage::%player's uuid%} ? 100%"
+    
+    # Исправленный таймер
+    if {_id} is "timer":
+        set {_m} to floor({farm_timer} / 60)
+        set {_s} to {farm_timer} mod 60
+        if {_s} < 10:
+            set the result to "%{_m}%:0%{_s}%"
+        else:
+            set the result to "%{_m}%:%{_s}%"
+
+    # --- ТОП ПО ОБЩЕМУ СБОРУ ---
+    if {_id} contains "top_name_":
+        replace "top_name_" with "" in {_id}
+        set {_rank} to {_id} parsed as integer
+        set {_map} to new TreeMap(Collections.reverseOrder())
+        loop {potato_total_collected::*}:
+            {_map}.put(loop-value, loop-index)
+        set {_iterator} to {_map}.values().iterator()
+        set {_count} to 0
+        while {_iterator}.hasNext():
+            add 1 to {_count}
+            set {_uuid} to {_iterator}.next()
+            if {_count} is {_rank}:
+                set {_p} to {_uuid} parsed as offline player
+                set the result to "%{_p}%"
+                stop
+        set the result to "---"
+
+    if {_id} contains "top_value_":
+        replace "top_value_" with "" in {_id}
+        set {_rank} to {_id} parsed as integer
+        set {_map} to new TreeMap(Collections.reverseOrder())
+        loop {potato_total_collected::*}:
+            {_map}.put(loop-value, loop-index)
+        set {_iterator} to {_map}.entrySet().iterator()
+        set {_count} to 0
+        while {_iterator}.hasNext():
+            add 1 to {_count}
+            set {_entry} to {_iterator}.next()
+            if {_count} is {_rank}:
+                set the result to "%{_entry}.getKey()%"
+                stop
+        set the result to "0"
+
+    # --- ЛИЧНАЯ СТАТИСТИКА ---
+    if {_id} is "my_rank":
+        set {_val} to {potato_total_collected::%player's uuid%} ? 0
+        set {_rank} to 1
+        loop {potato_total_collected::*}:
+            if loop-value > {_val}:
+                add 1 to {_rank}
+        set the result to "%{_rank}%"
+
+    if {_id} is "my_total":
+        set the result to "%{potato_total_collected::%player's uuid%} ? 0%"
+    if {_id} is "upgrade_price":
+        set {_lvl} to {potato_storage_lvl::%player's uuid%} ? 1
+        set {_price} to {_lvl} * 2000
+        set the result to "%{_price}%"
+
+
+
+# --- КОМАНДА ОТКРЫТИЯ МЕНЮ ---
+command /hoemenu:
+    aliases: /мотыга, /gethoe
+    trigger:
+        open_hoe_menu(player)
+
+# --- ФУНКЦИЯ СОЗДАНИЯ МЕНЮ ---
+function open_hoe_menu(p: player):
+    # Создаем инвентарь (3 ряда по 9 слотов)
+    set {_gui} to chest inventory with 3 rows named "&8Инвентарь: Бесплатные мотыги"
+    
+    # Заполняем фон серыми стеклами для красоты (опционально)
+    loop 27 times:
+        set slot (loop-number - 1) of {_gui} to gray stained glass pane named " "
+    
+    # Кнопка получения мотыги (в центре)
+    set slot 13 of {_gui} to wooden hoe named "&a&lПолучить мотыгу" with lore "&7Нажми, чтобы взять бесплатно", "&7Можно брать сколько угодно раз!"
+    
+    open {_gui} to {_p}
+
+# --- ОБРАБОТКА НАЖАТИЙ В МЕНЮ ---
+on inventory click:
+    if name of event-inventory is "&8Инвентарь: Бесплатные мотыги":
+        cancel event # Чтобы нельзя было украсть предметы декора
+        
+        # Если нажали на слот с мотыгой (13)
+        if index of event-slot is 13:
+            give 1 of wooden hoe to player
+            play sound "entity.item.pickup" with volume 0.5 to player
+            send action bar "&a&l+1 &fДеревянная мотыга получена!" to player
