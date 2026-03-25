@@ -1,0 +1,1010 @@
+options:
+    # Координаты NPC (Формат: x, y, z, world)
+    npc_loc_1: location(10206, 140, -122997, world "postroiki") # Такеши
+    npc_loc_2: location(10244, 134, -123001, world "postroiki") # Акира
+    npc_loc_3: location(10096, 71, -122587, world "postroiki") # Кенджи
+    npc_loc_4: location(10358, 56, -122661, world "postroiki") # Юми
+    fail_teleport_loc: location(10276, 167, -122633, world "postroiki") # Куда ТП при провале/смерти
+    
+    penalty_amount: 1000 # Сумма штрафа
+    scroll_item: paper named "§6§lСвиток Клана" with lore "§7Доставьте это Такеши" and "§8§o(Нельзя открывать инвентарь)"
+    compass_item: compass named "§bУказатель пути"
+    
+    
+    # Обычный режим
+    reward_std: 5000
+    time_std: 300
+    chance_std: 50
+    
+    # Режим Контрабанды
+    reward_hard: 10000
+    time_hard: 180
+    chance_hard: 100
+
+on damage:
+    if victim is a player:
+        if {delivery.active::%uuid of victim%} is 1:
+            # Если урон смертельный
+            if damage >= health of victim:
+                # Проверяем регион (требуется WorldGuard)
+                if "%region at victim%" contains "div":
+                    cancel event
+                    heal victim
+                    set food level of victim to 20
+                    send "「❕」 §cВы были при смерти, но магия свитка спасла вас и вернула назад!" to victim
+                    finishDelivery(victim, "death") # Сама функция теперь сделает ТП (см. ниже)
+        else:
+            if damage >= health of victim:
+                # Проверяем регион (требуется WorldGuard)
+                if "%region at victim%" contains "div":
+                    cancel event
+                    heal victim
+                    set food level of victim to 20
+                    send "「❕」 §cПизда!" to victim
+                    teleport victim to {@fail_teleport_loc}
+             
+
+# --- КОМАНДА ДЛЯ ТЕСТИРОВАНИЯ ИВЕНТОВ ---
+command /zevent <integer>:
+    permission: op
+    trigger:
+        set {_e} to arg-1
+        set {_p} to player
+        set {_u} to uuid of player
+        send "§7[DEBUG] §fЗапуск ивента №§e%{_e}%..." to player
+        # Вызов общего кода ивентов (ниже)
+        executeEvent({_p}, {_e})
+
+# --- ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ИВЕНТОВ ---
+function executeEvent(p: player, e: integer):
+    set {_u} to uuid of {_p}
+    
+    # --- БЛОК СТАРЫХ ИВЕНТОВ (1-60) ---
+    if {_e} is 1:
+        strike lightning effect at {_p}
+        damage {_p} by 1 heart
+        send "「⚡」 §cУдар молнии!" to {_p}
+    else if {_e} is 2:
+        apply blindness 1 to {_p} for 5 seconds
+        send "「❕」 §7В глазах потемнело..." to {_p}
+    else if {_e} is 3:
+        apply slowness 3 to {_p} for 8 seconds
+        send "「❕」 §cНоги как каменные." to {_p}
+    else if {_e} is 4:
+        set food level of {_p} to 1
+        send "「❕」 §6Сильный голод!" to {_p}
+    else if {_e} is 5:
+        apply nausea 1 to {_p} for 12 seconds
+        send "「❕」 §2Головокружение." to {_p}
+    else if {_e} is 6:
+        spawn 3 zombies at {_p}
+        set display name of last spawned entity to "§cПреследователь"
+        send "「❕」 §4Мертвецы поднялись из земли!" to {_p}
+    else if {_e} is 7:
+        ignite {_p} for 3 seconds
+        send "「🔥」 §cВы вспыхнули!" to {_p}
+    else if {_e} is 8:
+        apply levitation 1 to {_p} for 3 seconds
+        send "「❕」 §bГравитация покинула вас." to {_p}
+    else if {_e} is 9:
+        apply mining fatigue 3 to {_p} for 20 seconds
+        send "「❕」 §8Слабость в руках." to {_p}
+    else if {_e} is 10:
+        teleport {_p} to location 5 blocks behind {_p}
+        send "「❕」 §dВас отбросило назад во времени." to {_p}
+    else if {_e} is 11:
+        apply weakness 2 to {_p} for 15 seconds
+        send "「❕」 §7Вы чувствуете упадок сил." to {_p}
+    else if {_e} is 12:
+        spawn 1 creeper 3 blocks behind {_p}
+        send "「❕」 §eСзади шипит! Беги!" to {_p}
+    else if {_e} is 13:
+        set {delivery.timer.%{_u}%} to {delivery.timer.%{_u}%} - 30
+        send "「❕」 §cВремя ускорилось! (-30 сек)" to {_p}
+    else if {_e} is 14:
+        push {_p} upward with force 0.8
+        send "「❕」 §fСильный порыв ветра подбросил вас!" to {_p}
+    else if {_e} is 15:
+        apply glowing 1 to {_p} for 30 seconds
+        send "「❕」 §eВы теперь светитесь как мишень!" to {_p}
+    else if {_e} is 16:
+        damage {_p} by 0.5 hearts
+        send "「❕」 §cВы споткнулись о камень." to {_p}
+    else if {_e} is 17:
+        spawn 5 silverfish at {_p}
+        send "「❕」 §7Чешуйницы!" to {_p}
+    else if {_e} is 18:
+        apply wither 1 to {_p} for 5 seconds
+        send "「❕」 §8Тьма обволакивает вас." to {_p}
+    else if {_e} is 19:
+        play sound "entity.enderman.stare" to {_p}
+        send "「❕」 §5Кто-то наблюдает за вами..." to {_p}
+    else if {_e} is 20:
+        set velocity of {_p} to vector(0, 0, 0)
+        send "「❕」 §cВы замерли на мгновение." to {_p}
+
+    # --- ГРУППА: ПОЛОЖИТЕЛЬНЫЕ (21-40) ---
+    else if {_e} is 21:
+        apply speed 2 to {_p} for 20 seconds
+        send "「❕」 §aПрилив энергии!" to {_p}
+    else if {_e} is 22:
+        add 100 to {_p}'s balance
+        send "「❕」 §eВы нашли мешочек с монетами! (+¥100)" to {_p}
+    else if {_e} is 23:
+        set food level of {_p} to 20
+        send "「❕」 §6Вы нашли перекус гонца." to {_p}
+    else if {_e} is 24:
+        set health of {_p} to 10
+        send "「❕」 §dВторое дыхание! ХП восстановлено." to {_p}
+    else if {_e} is 25:
+        add 60 to {delivery.timer.%{_u}%}
+        send "「❕」 §bБонусное время! (+1 мин)" to {_p}
+    else if {_e} is 26:
+        apply jump boost 3 to {_p} for 15 seconds
+        send "「❕」 §fВы чувствуете легкость в прыжке." to {_p}
+    else if {_e} is 27:
+        apply resistance 3 to {_p} for 20 seconds
+        send "「❕」 §7Ваша кожа стала как сталь." to {_p}
+    else if {_e} is 28:
+        apply night vision 1 to {_p} for 60 seconds
+        send "「❕」 §fВзгляд ястреба." to {_p}
+    else if {_e} is 29:
+        apply invisibility 1 to {_p} for 15 seconds
+        send "「❕」 §fВы слились с окружением." to {_p}
+    else if {_e} is 30:
+        teleport {_p} to location 5 blocks in front of {_p}
+        send "「❕」 §dПрорыв в пространстве!" to {_p}
+    else if {_e} is 31:
+        apply regeneration 2 to {_p} for 10 seconds
+        send "「❕」 §dРаны заживают на глазах." to {_p}
+    else if {_e} is 32:
+        add 200 to {_p}'s balance
+        send "「❕」 §eТайник клана найден! (+¥200)" to {_p}
+    else if {_e} is 33:
+        play sound "entity.experience_orb.pickup" to {_p}
+        add 5 to {_p}'s level
+        send "「❕」 §aВы получили опыт гонца." to {_p}
+    else if {_e} is 34:
+        apply fire resistance 1 to {_p} for 30 seconds
+        send "「❕」 §6Жар вам больше не страшен." to {_p}
+    else if {_e} is 35:
+        apply speed 4 to {_p} for 5 seconds
+        send "「❕」 §bСВЕРХСКОРОСТЬ!" to {_p}
+    else if {_e} is 36:
+        send "「❕」 §aБоги клана смотрят на вас с одобрением." to {_p}
+    else if {_e} is 37:
+        heal {_p} by 2 hearts
+        send "「❕」 §aМалое исцеление." to {_p}
+    else if {_e} is 38:
+        play sound "ui.toast.challenge_complete" to {_p}
+        send "「❕」 §eВас подбадривают прохожие!" to {_p}
+    else if {_e} is 39:
+        apply dolphins grace 1 to {_p} for 20 seconds
+        send "「❕」 §bГрация дельфина (а нахуя)." to {_p}
+    else if {_e} is 40:
+        add 15 to {delivery.timer.%{_u}%}
+        send "「❕」 §bМалая прибавка времени." to {_p}
+
+    # --- ГРУППА: СТРАННОЕ И ОПАСНОЕ (41-60) ---
+    else if {_e} is 41:
+        spawn 1 tnt at {_p}
+        send "「❕」 §4ОСТОРОЖНО! ДИНАМИТ!" to {_p}
+    else if {_e} is 42:
+        apply nausea 5 to {_p} for 5 seconds
+        send "「❕」 §2Мир перевернулся." to {_p}
+    else if {_e} is 43:
+        spawn 1 iron golem at {_p}
+        set display name of last spawned entity to "§8Страж Пути"
+        set last spawned entity's target to {_p}
+        send "「❕」 §cСтраж считает, что вы украли свиток!" to {_p}
+    else if {_e} is 44:
+        play sound "entity.ghast.scream" to {_p}
+        send "「❕」 §7Жуткий крик раздался эхом..." to {_p}
+    else if {_e} is 45:
+        spawn 10 chickens at {_p}
+        send "「❕」 §fКуриный апокалипсис?!" to {_p}
+    else if {_e} is 46:
+        make {_p} execute command "me споткнулся и чуть не выронил свиток!"
+    else if {_e} is 47:
+        apply slow falling 1 to {_p} for 15 seconds
+        send "「❕」 §fВы стали легким как перышко." to {_p}
+    else if {_e} is 48:
+        spawn 1 witch at {_p}
+        send "「❕」 §2Ведьма хочет забрать ваш свиток!" to {_p}
+    else if {_e} is 49:
+        play sound "entity.lightning_bolt.thunder" to {_p}
+        send "「❕」 §8Грохот грома пугает вас." to {_p}
+    else if {_e} is 50:
+        set {_p}'s walk speed to 0.4
+        send "「❕」 §bВетер в спину!" to {_p}
+        wait 10 seconds
+        set {_p}'s walk speed to 0.2
+        
+    else if {_e} is 51:
+        damage {_p} by 3 hearts
+        send "「❕」 §4Засада ниндзя! Вы ранены!" to {_p}
+    else if {_e} is 52:
+        spawn 2 wolves at {_p}
+        set display name of last spawned entity to "§cАдская гончая"
+        set last spawned entity's target to {_p}
+    else if {_e} is 53:
+        send "「❕」 §eВы нашли старую карту, путь стал яснее." to {_p}
+    else if {_e} is 54:
+        apply speed 1 to {_p} for 40 seconds
+        send "「❕」 §aУверенность в ногах." to {_p}
+    else if {_e} is 55:
+        play sound "entity.wither.spawn" to {_p}
+        send "「❕」 §cЗловещая аура окружает вас..." to {_p}
+    else if {_e} is 56:
+        damage {_p} by 1 heart
+        send "「❕」 §cВы порезались о бумагу свитка!" to {_p}
+    else if {_e} is 57:
+        apply blindness 1 to {_p} for 2 seconds
+        send "「❕」 §7Моргнули..." to {_p}
+    else if {_e} is 58:
+        set {_up} to location of {_p}
+        add 2 to y-coordinate of {_up}
+        teleport {_p} to {_up} 
+        send "「❕」 §fПодброс!" to {_p}
+    else if {_e} is 59:
+        send "「❕」 §6Свиток Клана сияет..." to {_p}
+    else if {_e} is 60:
+        apply luck 1 to {_p} for 60 seconds
+        send "「❕」 §aСегодня ваш день!" to {_p}
+    
+    # --- НОВЫЕ ИВЕНТЫ (61-110) ---
+    else if {_e} is 61:
+        spawn 2 phantoms at {_p}
+        send "「❕」 §9Тени спустились с небес!" to {_p}
+    else if {_e} is 62:
+        apply strength 5 to {_p} for 10 seconds
+        send "「❕」 §4БЕРСЕРК! Сила зашкаливает!" to {_p}
+    else if {_e} is 63:
+        set block under {_p} to ice
+        send "「❕」 §bОсторожно, скользко!" to {_p}
+    else if {_e} is 64:
+        play sound "entity.creeper.primed" to {_p}
+        send "「❕」 §eЭтот звук... тебе не показалось?" to {_p}
+    else if {_e} is 65:
+        set {_p}'s walk speed to 0.1
+        send "「❕」 §7Ноги словно в болоте." to {_p}
+        wait 5 seconds
+        set {_p}'s walk speed to 0.2
+        
+    else if {_e} is 66:
+        spawn 1 bee at {_p}
+        set last spawned entity's target to {_p}
+        send "「❕」 §6Пчела-защитница леса недовольна вами!" to {_p}
+    else if {_e} is 67:
+        apply conduit power 1 to {_p} for 30 seconds
+        send "「❕」 §3Дыхание океана помогает вам." to {_p}
+    else if {_e} is 68:
+        set {_p}'s yaw to {_p}'s yaw + 180
+        send "「❕」 §dВнезапный разворот!" to {_p}
+    else if {_e} is 69:
+        drop 5 gold nuggets at {_p}
+        send "「❕」 §eКарман порвался, выпало золото!" to {_p}
+    else if {_e} is 70:
+        apply absorption 5 to {_p} for 20 seconds
+        send "「❕」 §6Золотой щит предков." to {_p}
+    else if {_e} is 71:
+        make {_p} say "Сука, я ебучий пидор!"
+    else if {_e} is 72:
+        spawn 1 bat at {_p}
+        send "「❕」 §8Летучая мышь пролетела мимо." to {_p}
+    else if {_e} is 73:
+        damage {_p}'s helmet by 5
+        send "「❕」 §7Лол." to {_p}
+    else if {_e} is 74:
+        apply glowing 1 to all entities in radius 15 around {_p} for 10 seconds
+        send "「❕」 §fВы видите всех врагов вокруг!" to {_p}
+    else if {_e} is 75:
+        set {delivery.timer.%{_u}%} to {delivery.timer.%{_u}%} - 15
+        send "「❕」 §cМагическая аномалия поглотила время! (-15с)" to {_p}
+    else if {_e} is 76:
+        show flash at {_p}
+        send "「🔥」 §cИскра!" to {_p}
+    else if {_e} is 77:
+        apply levitation 10 to {_p} for 1 second
+        send "「❕」 §bМикро-полет." to {_p}
+    else if {_e} is 78:
+        play sound "block.end_portal.spawn" to {_p}
+        send "「❕」 §5Гул из бездны..." to {_p}
+    else if {_e} is 79:
+        execute console command "minecraft:weather thunder"
+        send "「❕」 §8Погода портится." to {_p}
+    else if {_e} is 80:
+        apply luck 5 to {_p} for 30 seconds
+        send "「❕」 §aУдача на вашей стороне." to {_p}
+    else if {_e} is 81:
+        spawn 3 rabbits at {_p}
+        send "「❕」 §fКролики перебежали дорогу." to {_p}
+    else if {_e} is 82:
+        apply bad omen 1 to {_p} for 1 minute
+        send "「❕」 §4Дурное знамение..." to {_p}
+    else if {_e} is 83:
+        launch ball firework colored red and yellow at {_p}
+        send "「❕」 §eСалют в вашу честь!" to {_p}
+    else if {_e} is 84:
+        teleport {_p} to location 3 blocks above {_p}
+        send "「❕」 §fКвантовый скачок вверх." to {_p}
+    else if {_e} is 85:
+        set food level of {_p} to 20
+        apply saturation 1 to {_p} for 10 seconds
+        send "「❕」 §6Сытость мастера." to {_p}
+    else if {_e} is 86:
+        spawn 1 llama at {_p}
+        send "「❕」 §fЛама-путешественница?" to {_p}
+    else if {_e} is 87:
+        apply invisibility 1 to {_p} for 5 seconds
+        send "「❕」 §fМгновенное исчезновение." to {_p}
+    else if {_e} is 88:
+        play sound "entity.experience_orb.pickup" with volume 2 to {_p}
+        send "「❕」 §aЗвон монет в ушах." to {_p}
+    else if {_e} is 89:
+        damage {_p} by 0.5 hearts
+        send "「❕」 §cВы укололись о шип." to {_p}
+    else if {_e} is 90:
+        add 30 to {delivery.timer.%{_u}%}
+        send "「❕」 §bДухи времени благосклонны! (+30с)" to {_p}
+    else if {_e} is 91:
+        apply slowness 5 to {_p} for 2 seconds
+        send "「❕」 §7Одышка." to {_p}
+    else if {_e} is 92:
+        spawn 1 tnt at location 5 blocks in front of {_p}
+        send "「❕」 §4Мина впереди!" to {_p}
+    else if {_e} is 93:
+        set {_p}'s level to {_p}'s level + 1
+        send "「❕」 §eМудрость пути." to {_p}
+    else if {_e} is 94:
+        apply nausea 1 to {_p} for 5 seconds
+        send "「❕」 §2Легкое помутнение." to {_p}
+    else if {_e} is 95:
+        play sound "entity.enderman.teleport" to {_p}
+        send "「❕」 §dТень промелькнула рядом." to {_p}
+    else if {_e} is 96:
+        damage {_p}'s chestplate by 2
+        send "「❕」 §7Доспех поцарапан." to {_p}
+    else if {_e} is 97:
+        apply speed 10 to {_p} for 2 seconds
+        send "「❕」 §bРывок!" to {_p}
+    else if {_e} is 98:
+        spawn 1 parrot at {_p}
+        send "「❕」 §aПопугай присел на плечо." to {_p}
+    else if {_e} is 99:
+        apply blindness 1 to {_p} for 1 second
+        send "「❕」 §0Мрак." to {_p}
+    else if {_e} is 100:
+        send "「❕」 §6Свиток тяжелеет..." to {_p}
+    else if {_e} is 101:
+        apply fire resistance 1 to {_p} for 10 seconds
+        send "「❕」 §6Прохлада." to {_p}
+    else if {_e} is 102:
+        spawn 1 iron golem at {_p}
+        set last spawned entity's target to {_p}
+        wait 5 seconds
+        delete last spawned entity
+        send "「❕」 §cФантомный страж!" to {_p}
+    else if {_e} is 103:
+        play sound "entity.wolf.howl" to {_p}
+        send "「❕」 §7Вой вдалеке..." to {_p}
+    else if {_e} is 104:
+        set food level of {_p} to 5
+        send "「❕」 §cРезкий упадок сил." to {_p}
+    else if {_e} is 105:
+        apply jump boost 5 to {_p} for 5 seconds
+        send "「❕」 §fПрыгучесть лягушки." to {_p}
+    else if {_e} is 106:
+        set {_loc} to location of {_p}
+        add random integer between -3 and 3 to x-coordinate of {_loc}
+        add random integer between -3 and 3 to z-coordinate of {_loc}
+        strike lightning effect at {_loc}
+    else if {_e} is 107:
+        heal {_p} by 1 heart
+        send "「❕」 §aСвет исцеления." to {_p}
+    else if {_e} is 108:
+        apply water breathing 1 to {_p} for 20 seconds
+        send "「❕」 §3Жабры курьера." to {_p}
+    else if {_e} is 109:
+        make {_p} execute command "me оглядывается по сторонам"
+    else if {_e} is 110:
+        send "「❕」 §dВы чувствуете, что цель близко!" to {_p}
+
+
+
+
+
+# --- ЗАЩИТА ОТ КОМАНД ---
+on command:
+    if {delivery.active::%uuid of player%} is 1:
+        if player doesn't have permission "op":
+            if command is not "delivery-debug":
+                cancel event
+                send "「❕」 §cВо время доставки нельзя использовать команды!" to player
+
+# --- СИСТЕМА «ХВОСТ» (ТОЛЬКО КОНТРАБАНДА) ---
+every 30 seconds:
+    loop all players:
+        if {delivery.active::%uuid of loop-player%} is 1:
+            if {delivery.mode.%uuid of loop-player%} is "hard":
+                set {_u} to uuid of loop-player
+                set {_loc} to location 2 blocks behind loop-player
+                
+                spawn 1 skeleton at {_loc}
+                set {_m} to last spawned entity
+                
+                # --- ДЕБАГ ---
+                #send "§7[DEBUG] §fАссасин заспавнен для %loop-player%" to loop-player
+                
+                # Настройки моба
+                set display name of {_m} to "§4Ассасин Клана"
+                set metadata value "delivery_mob" of {_m} to "%{_u}%"
+                # Добавляем метку времени для удаления
+                set metadata value "despawn_me" of {_m} to "true"
+                
+                apply invisibility 1 to {_m} for 999 days
+                set tool of {_m} to netherite sword
+                set {_m}'s target to loop-player
+                
+                send "「❕」 §4Вы чувствуете дыхание смерти за спиной..." to loop-player
+                play sound "entity.enderman.teleport" to loop-player
+                
+                # Запускаем функцию удаления с передачей сущности
+                # В Skript передача объекта в функцию — самый надежный способ
+                disposeAssassin({_m}, {_p})
+
+# Функция телепортации в бездну
+function disposeAssassin(e: entity, p: player):
+    wait 2 seconds
+    if {_e} is alive:
+        # Телепортируем далеко вниз в бездну
+        set {_void} to location of {_e}
+        set y-coordinate of {_void} to -100
+        teleport {_e} to {_void}
+
+        # На всякий случай пробуем удалить через тик, если ТП не хватило
+        wait 1 tick
+        delete {_e}
+
+
+# --- ОБНОВЛЕННАЯ ФУНКЦИЯ ЗАВЕРШЕНИЯ ---
+function finishDelivery(p: player, reason: text):
+    console command "effect clear %{_p}%"
+    set {_u} to uuid of {_p}
+    delete {delivery.scroll_item.%{_u}%} 
+    delete {delivery.scroll_id.%{_u}%}
+
+    # Логика штрафа
+    if {_reason} is not "success" or "debug-reset":
+        # ТЕЛЕПОРТАЦИЯ ПРИ ПРОВАЛЕ (смерть или время вышло)
+        teleport {_p} to {@fail_teleport_loc}
+        
+        if balance of {_p} >= {@penalty_amount}:
+            remove {@penalty_amount} from balance of {_p}
+            send "「❕」 §cС вашего баланса списано §l¥{@penalty_amount} §cштрафа." to {_p}
+        else:
+            set balance of {_p} to 0
+            send "「❕」 §cВы провалили задание и обанкротились!" to {_p}
+
+    delete {delivery.mode.%{_u}%}
+    
+    # Удаление мобов-преследователей
+    loop entities in radius 50 around {_p}:
+        if metadata value "delivery_mob" of loop-entity is "%{_u}%":
+            delete loop-entity 
+    
+    # Возврат вещей
+    clear inventory of {_p}
+    set {_i} to 0
+    loop 36 times:
+        set slot {_i} of {_p}'s inventory to {delivery.slot_%{_i}%.%{_u}%}
+        delete {delivery.slot_%{_i}%.%{_u}%}
+        add 1 to {_i}
+        
+    set slot 40 of {_p}'s inventory to {delivery.offhand.%{_u}%}
+    set helmet of {_p} to {delivery.helmet.%{_u}%}
+    set chestplate of {_p} to {delivery.chestplate.%{_u}%}
+    set leggings of {_p} to {delivery.leggings.%{_u}%}
+    set boots of {_p} to {delivery.boots.%{_u}%}
+    
+    # Чистка переменных
+    delete {delivery.offhand.%{_u}%}
+    delete {delivery.helmet.%{_u}%}
+    delete {delivery.chestplate.%{_u}%}
+    delete {delivery.leggings.%{_u}%}
+    delete {delivery.boots.%{_u}%}
+    delete {delivery.timer.%{_u}%}
+    delete {delivery.active::%{_u}%}
+    
+    # Сообщения
+    if {_reason} is "success":
+        send "「❕」 §aЗадание выполнено успешно!" to {_p}
+    else if {_reason} is "timeout":
+        send "「❕」 §cВремя вышло! Вы телепортированы назад." to {_p}
+    else if {_reason} is "death":
+        send "「❕」 §cВы погибли! Вещи возвращены, вы на спавне." to {_p}
+    else if {_reason} is "quit":
+        # Сообщение отправится при следующем входе, если нужно, но штраф спишется сейчас
+    else if {_reason} is "debug-reset":
+        send "「❕」 §7Данные сброшены администратором." to {_p}
+    else:
+        send "「❕」 §cДоставка провалена: %{_reason}%" to {_p}
+
+# --- ТАЙМЕР, ЭФФЕКТЫ И ТИКАНИЕ ---
+every 1 second:
+    loop all players:
+        if {delivery.active::%uuid of loop-player%} is 1:
+            if {delivery.timer.%uuid of loop-player%} > 0:
+                remove 1 from {delivery.timer.%uuid of loop-player%}
+                play sound "ui.button.click" with volume 0.3 and pitch 2 to loop-player
+                
+                set {_u} to uuid of loop-player
+                
+                # --- ЛОГИКА ЭФФЕКТОВ СВИТКОВ ---
+                set {_id} to {delivery.scroll_id.%{_u}%}
+                if {_id} is 10931:
+                    apply strength 2 to loop-player for 2 seconds
+                    apply hunger 2 to loop-player for 2 seconds
+                else if {_id} is 10932:
+                    apply speed 2 to loop-player for 2 seconds
+                    apply mining fatigue 2 to loop-player for 2 seconds
+                else if {_id} is 10933:
+                    apply regeneration 2 to loop-player for 2 seconds
+                    apply slowness 1 to loop-player for 2 seconds
+                else if {_id} is 10934:
+                    apply resistance 2 to loop-player for 2 seconds
+                    chance of 25%:
+                        apply blindness 1 to loop-player for 2 seconds
+                else if {_id} is 10935:
+                    apply jump boost 3 to loop-player for 2 seconds
+                    apply weakness 1 to loop-player for 2 seconds
+                else if {_id} is 10936:
+                    apply speed 2 to loop-player for 2 seconds
+                    apply fire resistance 1 to loop-player for 2 seconds
+                    apply strength 1 to loop-player for 2 seconds
+
+                # --- РАСЧЕТ ДИСТАНЦИИ (МЕТРЫ) ---
+                # Проверяем, находится ли игрок в том же мире, что и цель
+                if world of loop-player is world of {delivery.target_loc.%{_u}%}:
+                    set {_dist} to distance between loop-player and {delivery.target_loc.%{_u}%}
+                    set {_dist_text} to "§b%{_dist}%м."
+                else:
+                    # Если игрок в другом мире (например, еще не зашел в 'postroiki')
+                    set {_dist_text} to "§cВ другом мире"
+
+                # --- РАСЧЕТ И ОТОБРАЖЕНИЕ ACTION BAR ---
+                set {_total} to {delivery.timer.%{_u}%}
+                set {_m} to floor({_total} / 60)
+                set {_s} to {_total} - ({_m} * 60)
+                
+                if {delivery.mode.%{_u}%} is "hard":
+                    set {_reward} to floor(({_total} / {@time_hard}) * {@reward_hard})
+                    set {_prefix} to "§4§lКОНТРАБАНДА"
+                    if {delivery.timer.%{_u}%} < 20:
+                        send title "" with subtitle "§4§lПОТОРОПИСЬ!" to loop-player for 1 second
+                else:
+                    set {_reward} to floor(({_total} / {@time_std}) * {@reward_std})
+                    set {_prefix} to "§6§lДОСТАВКА"
+                    if {delivery.timer.%{_u}%} < 40:
+                        send title "" with subtitle "§cУспей донести!" to loop-player for 1 second
+
+                if {_reward} < 100:
+                    set {_reward} to 100
+                
+                # ВЫВОД: Добавлен блок с дистанцией и целью
+                send action bar "%{_prefix}% §f| §7Цель: §e%{delivery.target_name.%{_u}%}% §8(%{_dist_text}%§8) §f| §a¥%{_reward}% §f| §c%{_m}%:%{_s}%" to loop-player
+            else:
+                finishDelivery(loop-player, "timeout")
+
+# --- ОБНОВЛЕННЫЙ ТАЙМЕР ИВЕНТОВ ---
+every 10 seconds:
+    loop all players:
+        if {delivery.active::%uuid of loop-player%} is 1:
+            set {_u} to uuid of loop-player
+            set {_chance} to {@chance_std}
+            if {delivery.mode.%{_u}%} is "hard":
+                set {_chance} to {@chance_hard}
+            
+            chance of {_chance}%:
+                set {_e} to random integer between 1 and 110
+                executeEvent(loop-player, {_e})
+
+
+# --- ОБНОВЛЕННАЯ ФУНКЦИЯ ЗАПУСКА ---
+function startDelivery(p: player, mode: text):
+    console command "effect clear %{_p}%"
+    set health of {_p} to 10           # Устанавливает полное здоровье (10 сердец = 20 хп)
+    set food level of {_p} to 20
+    set {_u} to uuid of {_p}
+    set {delivery.active::%{_u}%} to 1
+    set {delivery.mode.%{_u}%} to {_mode}
+    
+    # --- ВЫБОР СЛУЧАЙНОГО ПОЛУЧАТЕЛЯ ---
+    set {_rand_npc} to random integer between 1 and 4
+    if {_rand_npc} is 1:
+        set {delivery.target_name.%{_u}%} to "Такеши"
+        set {delivery.target_loc.%{_u}%} to {@npc_loc_1}
+    else if {_rand_npc} is 2:
+        set {delivery.target_name.%{_u}%} to "Акира"
+        set {delivery.target_loc.%{_u}%} to {@npc_loc_2}
+    else if {_rand_npc} is 3:
+        set {delivery.target_name.%{_u}%} to "Кенджи"
+        set {delivery.target_loc.%{_u}%} to {@npc_loc_3}
+    else if {_rand_npc} is 4:
+        set {delivery.target_name.%{_u}%} to "Юми"
+        set {delivery.target_loc.%{_u}%} to {@npc_loc_4}
+
+# --- ВЫБОР СЛУЧАЙНОГО СКИНА СВИТКА С ЭФФЕКТАМИ ---
+    set {_ids::*} to 10931, 10932, 10933, 10934, 10935 and 10936
+    set {_random_id} to random element of {_ids::*}
+    set {delivery.scroll_id.%{_u}%} to {_random_id} # Сохраняем ID для эффектов
+    
+    # Названия для Lore в зависимости от цвета
+    if {_random_id} is 10931:
+        set {_t} to "§cЯростный (Сила + Голод)"
+    else if {_random_id} is 10932:
+        set {_t} to "§bСтремительный (Скорость + Утомление)"
+    else if {_random_id} is 10933:
+        set {_t} to "§aЖивительный (Реген + Замедление)"
+    else if {_random_id} is 10934:
+        set {_t} to "§6Тяжелый (Защита + Слепота)"
+    else if {_random_id} is 10935:
+        set {_t} to "§eЛетучий (Прыжок + Слабость)"
+    else if {_random_id} is 10936:
+        set {_t} to "§4§lДревний (Только Баффы!)"
+
+    set {delivery.scroll_item.%{_u}%} to bone with custom model data {_random_id} named "§6§lСвиток Клана" with lore "§7Тип: %{_t}%" and "§7Доставьте это %{delivery.target_name.%{_u}%}%" and "§8§o(Нельзя открывать инвентарь)"
+
+    if {_mode} is "hard":
+        set {delivery.timer.%{_u}%} to {@time_hard}
+        send "「❕」 §4Контрабанда! Доставь груз к §l%{delivery.target_name.%{_u}%}%" to {_p}
+    else:
+        set {delivery.timer.%{_u}%} to {@time_std}
+        send "「❕」 §eХироши: §fДоставь этот свиток к §b%{delivery.target_name.%{_u}%}%." to {_p}
+
+    # Сохранение инвентаря
+    set {_i} to 0
+    loop 36 times:
+        set {delivery.slot_%{_i}%.%{_u}%} to slot {_i} of {_p}'s inventory
+        add 1 to {_i}
+    set {delivery.offhand.%{_u}%} to slot 40 of {_p}'s inventory
+    set {delivery.helmet.%{_u}%} to helmet of {_p}
+    set {delivery.chestplate.%{_u}%} to chestplate of {_p}
+    set {delivery.leggings.%{_u}%} to leggings of {_p}
+    set {delivery.boots.%{_u}%} to boots of {_p}
+    
+    clear inventory of {_p}
+    set slot 40 of {_p} to air
+    set helmet of {_p} to air
+    set chestplate of {_p} to air
+    set leggings of {_p} to air
+    set boots of {_p} to air
+    
+    # Выдача предметов
+    give {delivery.scroll_item.%{_u}%} to {_p}
+    # Вместо простой выдачи, мы сначала задаем цель, а потом выдаем предмет
+    set {_target} to {delivery.target_loc.%{_u}%}
+    set {_p}'s compass target to {_target}
+    
+    set {_c} to {@compass_item}
+    set name of {_c} to "§bУказатель: §n%{delivery.target_name.%{_u}%}%"
+
+    set {_p}'s compass target to {delivery.target_loc.%{_u}%}
+
+# --- NPC ВЗАИМОДЕЙСТВИЕ ---
+on npc right click:
+    set {_name} to name of event-npc
+    set {_u} to uuid of player
+    
+    # ЛОГИКА ХИРОШИ
+    if {_name} is "Хироши":
+        if {delivery.active::%uuid of player%} is 1:
+            send "「❕」 §cВы уже на задании!" to player
+            stop
+            
+        open chest with 3 rows named "§0Выберите тип доставки" to player
+        set slot 11 of current inventory of player to emerald named "§a§lОбычная доставка" with lore "§7Награда: §fдо ¥5,000" and "§7Время: §f5 мин" and "§7Сложность: §aНизкая"
+        set slot 15 of current inventory of player to tnt named "§4§lКонтрабанда" with lore "§7Награда: §fдо ¥10,000" and "§7Время: §f3 мин" and "§7Сложность: §cЭКСТРЕМАЛЬНАЯ"
+
+# ЛОГИКА ПОЛУЧАТЕЛЕЙ (Универсальная)
+    if {delivery.active::%{_u}%} is 1:
+        if {_name} is {delivery.target_name.%{_u}%}:
+            if player has {delivery.scroll_item.%{_u}%}:
+                remove {delivery.scroll_item.%{_u}%} from player's inventory
+                remove {@compass_item} from player's inventory
+                
+                # Расчет награды
+                if {delivery.mode.%{_u}%} is "hard":
+                    set {_final} to floor(({delivery.timer.%{_u}%} / {@time_hard}) * {@reward_hard})
+                else:
+                    set {_final} to floor(({delivery.timer.%{_u}%} / {@time_std}) * {@reward_std})
+                
+                if {_final} < 100:
+                    set {_final} to 100
+                    
+                add {_final} to balance of player
+                send "「❕」 §a%{_name}%: §fСпасибо! Вот твоя оплата: §e¥%{_final}%" to player
+                play sound "entity.player.levelup" to player
+                saveDeliveryStats(player, {_final})
+                finishDelivery(player, "success")
+                delete {delivery.scroll_item.%{_u}%}
+                delete {delivery.target_name.%{_u}%}
+                delete {delivery.target_loc.%{_u}%}
+                wait 10 tick
+                teleport player to {@fail_teleport_loc}
+            else:
+                send "「❕」 §c%{_name}%: §fГде мой свиток? Не возвращайся без него." to player
+        else:
+            # Если игрок пришел не к тому NPC
+            if {_name} is "Акира" or "Такеши" or "Кенджи" or "Юми":
+                send "「❕」 §c%{_name}%: §fЭто не мне! Неси посылку к §l%{delivery.target_name.%{_u}%}%." to player
+
+# --- ОБРАБОТКА КЛИКОВ В МЕНЮ ---
+on inventory click:
+    if name of top inventory of player is "§0Выберите тип доставки":
+        cancel event
+        if index of clicked slot is 11:
+            close player's inventory
+            startDelivery(player, "normal")
+        if index of clicked slot is 15:
+            close player's inventory
+            startDelivery(player, "hard")
+
+# --- ПРОВАЛ ПРИ СМЕРТИ ---
+on death of player:
+    if {delivery.active::%uuid of victim%} is 1:
+        send "「❕」 §cВы погибли и потеряли свиток! Доставка провалена." to victim
+        finishDelivery(victim, "death")
+on damage of player:
+    if {delivery.active::%uuid of victim%} is 1:
+        remove 10 from {delivery.timer.%uuid of victim%}
+        send "「❕」 §cВы получили урон! Свиток поврежден, время сокращено на 10 сек." to victim
+on flight toggle:
+    if {delivery.active::%uuid of player%} is 1:
+        cancel event
+        send "「❕」 §cМагия свитка слишком тяжелая для полета!" to player
+
+on vehicle enter:
+    if {delivery.active::%uuid of player%} is 1:
+        cancel event
+        send "「❕」 §cГонец должен идти только пешком!" to player
+
+# --- ОБРАБОТКА ВЫХОДА ---
+on quit:
+    if {delivery.active::%uuid of player%} is 1:
+        finishDelivery(player, "quit")
+
+# --- ЗАПРЕТ СБРОСА ПРЕДМЕТА (Q) ---
+on drop:
+    if {delivery.active::%uuid of player%} is 1:
+        if custom model data of event-item is between 10931 and 10936:
+            cancel event
+        if event-item is a compass:
+            cancel event
+
+# Запрет кликов по сундукам (чтобы не переложил)
+on inventory click:
+    if {delivery.active::%uuid of player%} is 1:
+        if clicked inventory is not player's inventory:
+            cancel event
+            send "「❕」 §cВы не можете открывать хранилища во время доставки!" to player
+
+every 1 second:
+    loop all players:
+        if {delivery.active::%uuid of loop-player%} is 1:
+            set {_loc1} to location of loop-player
+            set {_loc2} to location 1 block above loop-player
+            
+            # Если в ногах или в голове вода
+            if block at {_loc1} is water or water_cauldron:
+                remove 5 from {delivery.timer.%uuid of loop-player%}
+                send action bar "§4§l!!! СВИТОК НАМОКАЕТ! Штраф -5 СЕК !!!" to loop-player
+                play sound "block.lava.extinguish" with volume 0.3 and pitch 2 to loop-player
+            else if block at {_loc2} is water:
+                remove 5 from {delivery.timer.%uuid of loop-player%}
+                send action bar "§4§l!!! СВИТОК НАМОКАЕТ! Штраф -5 СЕК !!!" to loop-player
+                play sound "block.lava.extinguish" with volume 0.3 and pitch 2 to loop-player
+
+# --- МЕХАНИКА: ПРЫЖКИ УТОМЛЯЮТ ---
+#on jump:
+#    if {delivery.active::%uuid of player%} is 1:
+#        if food level of player > 3:
+#            remove 0.5 from food level of player
+#        apply slowness 1 to player for 1.5 seconds
+on damage of player:
+    if {delivery.active::%uuid of victim%} is 1:
+        if attacker is a player:
+            apply speed 3 to victim for 3 seconds
+            apply blindness 2 to victim for 3 seconds
+            send "「❕」 §cНа вас напали! В панике вы бежите быстрее, но ничего не видите!" to victim
+every 5 seconds:
+    loop all players:
+        if {delivery.active::%uuid of loop-player%} is 1:
+            # Ищем монстров в радиусе 25 блоков от игрока
+            loop entities in radius 25 around loop-player:
+                # Проверяем, что это монстр и он не в команде курьера
+                if loop-entity-2 is a zombie or a skeleton or a spider or a creeper:
+                    set target of loop-entity-2 to loop-player
+# --- ЗАПРЕТ ПЕРЕМЕЩЕНИЯ КВЕСТОВЫХ ПРЕДМЕТОВ ---
+on inventory click:
+    if {delivery.active::%uuid of player%} is 1:
+        
+        # 1. Запрет открывать чужие инвентари (сундуки и т.д.)
+        # Используем name of current inventory вместо top inventory
+        if name of current inventory of player is not "§0Выберите тип доставки":
+            if clicked inventory is not player's inventory:
+                cancel event
+                send "「❕」 §cВы не можете открывать хранилища во время доставки!" to player
+                stop
+
+        # 2. Блокировка конкретных предметов
+        # Используем event-item вместо clicked item
+        set {_item} to event-item
+        if {_item} is a bone or a compass:
+            if custom model data of {_item} is between 10931 and 10936:
+                cancel event
+                send "「❕」 §cМагия клана удерживает свиток в этом слоте!" to player
+            else if name of {_item} contains "§bУказатель":
+                cancel event
+                send "「❕」 §cКомпас должен быть под рукой!" to player
+
+        # 3. Защита от горячих клавиш (1-9)
+        # В Skript тип клика проверяется через click type
+        if click type is number key:
+            cancel event
+            send "「❕」 §cНельзя использовать быстрые слоты!" to player
+
+
+
+
+# ============================================
+# СИСТЕМА ТОП-5 КУРЬЕРОВ
+# ============================================
+
+import:
+    java.util.TreeMap
+    java.util.Collections
+
+# --- СИСТЕМА СОХРАНЕНИЯ СТАТИСТИКИ ---
+function saveDeliveryStats(p: player, money: integer):
+    set {_u} to uuid of {_p}
+    # Используем СТРОГИЕ названия переменных для всех блоков
+    add 1 to {delivery.stats.count::%{_u}%}
+    add {_money} to {delivery.stats.money::%{_u}%}
+    set {delivery.stats.name::%{_u}%} to name of {_p}
+
+
+
+# --- КОМАНДА ДЛЯ ПРОВЕРКИ СТАТИСТИКИ ---
+command /deliverystats:
+    trigger:
+        set {_u} to uuid of player
+        send "§6=== ТВОЯ СТАТИСТИКА ===" to player
+        send "§fДенег заработано: §a¥%{delivery.stats.money.%{_u}%} ? 0%" to player
+        send "§fДоставок: §e%{delivery.stats.count.%{_u}%} ? 0%" to player
+        send "§fИмя в базе: §b%{delivery.stats.name.%{_u}%} ? "не сохранено"%"
+        send "" to player
+        send "§7Всего игроков в топе: §e%size of {delivery.stats.money::*}%" to player
+
+
+placeholderapi placeholder with the prefix "delivery":
+    set {_id} to the identifier
+    set {_u} to uuid of player
+    
+    # Плейсхолдеры ТОПА (используют сортировку по деньгам как основную)
+    if {_id} contains "top_":
+        set {_map} to new TreeMap(Collections.reverseOrder())
+        loop {delivery.stats.money::*}:
+            set {_val} to loop-value
+            set {_formatted_val} to "%{_val}%"
+            while length of {_formatted_val} < 10:
+                set {_formatted_val} to "0%{_formatted_val}%"
+    
+            set {_key} to "%{_formatted_val}%_%loop-index%"
+            {_map}.put({_key}, loop-index)
+        
+        set {_iterator} to {_map}.entrySet().iterator()
+        
+        # Парсим ранг из ID (например, из top_name_1 вытащит 1)
+        set {_raw_id} to {_id}
+        replace "top_name_" and "top_money_" and "top_count_" with "" in {_raw_id}
+        set {_rank_target} to {_raw_id} parsed as integer
+        
+        set {_count} to 0
+        while {_iterator}.hasNext():
+            add 1 to {_count}
+            set {_entry} to {_iterator}.next()
+            if {_count} is {_rank_target}:
+                set {_target_uuid} to {_entry}.getValue()
+                if {_id} contains "top_name_":
+                    set the result to "%{delivery.stats.name::%{_target_uuid}%}%"
+                else if {_id} contains "top_money_":
+                    set the result to "%{delivery.stats.money::%{_target_uuid}%}%"
+                else if {_id} contains "top_count_":
+                    set the result to "%{delivery.stats.count::%{_target_uuid}%}%"
+                stop
+        set the result to "---"
+
+    # ЛИЧНОЕ МЕСТО В ТОПЕ
+    if {_id} is "player_rank":
+        set {_val} to {delivery.stats.money::%{_u}%} ? 0
+        set {_rank} to 1
+        loop {delivery.stats.money::*}:
+            if loop-value > {_val}:
+                add 1 to {_rank}
+        set the result to "%{_rank}%"
+
+    # ЛИЧНАЯ СТАТИСТИКА
+    if {_id} is "player_money":
+        set the result to "%{delivery.stats.money::%{_u}%} ? 0%"
+    if {_id} is "player_count":
+        set the result to "%{delivery.stats.count::%{_u}%} ? 0%"
+        
+        
+        
+        
+command /deliverytop:
+    aliases: /dtop, /топдоставок
+    trigger:
+        send "" to player
+        send "§6§l════════ ТОП-5 КУРЬЕРОВ ════════" to player
+        send "" to player
+        
+        if {delivery.stats.money::*} is not set:
+            send "§7Пока никто не выполнил ни одной доставки!" to player
+            send "§6§l════════════════════════════════" to player
+            stop
+        
+        # Сортировка через TreeMap (по деньгам)
+        set {_map} to new TreeMap(Collections.reverseOrder())
+        loop {delivery.stats.money::*}:
+            set {_key} to "%loop-value%_%loop-index%"
+            {_map}.put({_key}, loop-index)
+        
+        set {_iterator} to {_map}.entrySet().iterator()
+        set {_pos} to 0
+        
+        while {_iterator}.hasNext():
+            add 1 to {_pos}
+            if {_pos} > 5:
+                stop loop
+            
+            set {_entry} to {_iterator}.next()
+            set {_uuid} to {_entry}.getValue()
+            
+            # Получаем все данные игрока по его UUID
+            set {_money} to {delivery.stats.money::%{_uuid}%} ? 0
+            set {_count} to {delivery.stats.count::%{_uuid}%} ? 0
+            set {_pname} to {delivery.stats.name::%{_uuid}%} ? "Неизвестный"
+            
+            # Настройка иконок
+            set {_medal} to "§f%{_pos}%."
+            if {_pos} is 1:
+                set {_medal} to "§6🥇"
+            else if {_pos} is 2:
+                set {_medal} to "§7🥈"
+            else if {_pos} is 3:
+                set {_medal} to "§c🥉"
+            
+            # ВЫВОД: Имя - Деньги (Количество)
+            send "%{_medal}% §e%{_pname}% §7- §a¥%{_money}% §7(§f%{_count}% дост.§7)" to player
+        
+        # Заполнение пустых строк
+        if {_pos} < 5:
+            loop (5 - {_pos}) times:
+                add 1 to {_pos}
+                send "§8%{_pos}%. §7---" to player
+        
+        send "" to player
+        # Личное место игрока
+        set {_u} to uuid of player
+        set {_my_val} to {delivery.stats.money::%{_u}%} ? 0
+        set {_my_rank} to 1
+        loop {delivery.stats.money::*}:
+            if loop-value > {_my_val}:
+                add 1 to {_rank}
+        
+        send "§7Твое место: §e§l##%{_my_rank}% §7| Заработано: §a¥%{_my_val}%" to player
+        send "§6§l════════════════════════════════" to player
+
+
