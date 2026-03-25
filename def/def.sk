@@ -1,0 +1,732 @@
+# ==========================================
+# ЗАГРУЗКА ТОЧЕК
+# ==========================================
+on load:
+    delete {td.path::*}
+    add location(358.5, 31, -102.5, world "voidworld") to {td.path::*}
+    add location(358.5, 31, -62.5, world "voidworld") to {td.path::*}
+    add location(343.5, 31, -62.5, world "voidworld") to {td.path::*}
+    add location(343.5, 31, -97.5, world "voidworld") to {td.path::*}
+    add location(328.5, 31, -97.5, world "voidworld") to {td.path::*}
+    add location(328.5, 31, -54.5, world "voidworld") to {td.path::*}
+    set {td.spawn_interval} to 5 # Стандартная скорость - 3 секунды
+    send "§a[TD] Точки маршрута обновлены!" to console
+
+# ==========================================
+# ГЛАВНАЯ ФУНКЦИЯ ДВИЖЕНИЯ
+# ==========================================
+function spawnTDMob(type: entitytype, name: text, hp: number, speed: number, fine: number):
+    spawn 1 of {_type} at {td.path::1}
+    set {_m} to last spawned entity
+    set display name of {_m} to colored {_name}
+    set {defence_mob.%{_m}%} to true
+    set metadata value "td_mob" of {_m} to "true"
+    
+    # УСТАНОВКА ХП (через атрибуты)
+    set max health of {_m} to {_hp}
+    set health of {_m} to {_hp}
+    
+    # Визуальные настройки из твоих данных
+    set helmet of {_m} to stone button
+    if {_name} contains "slasher":
+        set tool of {_m} to iron axe
+    if {_name} contains "sea reaper":
+        set tool of {_m} to trident
+    if {_name} contains "tank":
+        set helmet of {_m} to iron helmet
+    if {_name} contains "desert brute":
+        set chestplate of {_m} to iron chestplate
+
+    # Физика (NoAI + NoGravity)
+    set {_nbt} to nbt compound from "{NoAI:1b,NoGravity:1b,Silent:1b}"
+    add {_nbt} to nbt of {_m}
+    
+    # Цикл движения
+    loop 5 times:
+        set {_target} to {td.path::%loop-number + 1%}
+        while {_m} is alive:
+            set {_curr} to location of {_m}
+            if distance between {_curr} and {_target} < 0.5:
+                stop loop
+            
+            set {_dir} to vector between {_curr} and {_target}
+            set {_next} to {_curr}
+            set yaw of {_next} to yaw of {_dir}
+            set {_next} to location {_speed} meters in front of {_next}
+            
+            teleport {_m} to {_next}
+            wait 1 tick
+        teleport {_m} to {_target}
+
+    # ФИНИШ
+    if {_m} is alive:
+        set {_arena} to location(345, 31, -81, world "voidworld")
+        loop all players in radius 30 around {_arena}:
+            remove {_fine} from balance of loop-player
+            send "§c❌ %{_name}% §cпрорвался! -%{_fine}%¥" to loop-player
+        
+        delete {defence_mob.%{_m}%}
+        
+        teleport {_m} to location(0, -100, 0, world "voidworld")
+        kill {_m}
+
+# ==========================================
+# КОМАНДА ЗАПУСКА
+# ==========================================
+command /td-start <number>:
+    permission: op
+    trigger:
+        set {td.active} to true
+        send "§a[TD] Спавн запущен!" to player
+        while {td.active} is true:
+            set {_r} to random integer between 1 and 100
+            
+            # Спавним мобов с твоими данными (Тип, Имя, ХП, Скорость, Штраф)
+            if {_r} <= 40:
+                spawnTDMob(zombie, "&a&lwalker", 30, 0.16, 1)
+            
+            else if {_r} <= 65:
+                spawnTDMob(skeleton, "&7&lbones", 25, 0.2, 1)
+            
+            else if {_r} <= 80:
+                if random integer between 1 and 2 is 1:
+                    spawnTDMob(zombie, "&e&ltank", 60, 0.1, 4)
+                else:
+                    spawnTDMob(spider, "&8&lcrawler", 35, 0.35, 5)
+            
+            else if {_r} <= 90:
+                set {_sub} to random integer between 1 and 3
+                if {_sub} is 1:
+                    spawnTDMob(husk, "&6&ldesert brute", 70, 0.18, 6)
+                else if {_sub} is 2:
+                    spawnTDMob(drowned, "&b&lsea reaper", 85, 0.2, 10)
+                else:
+                    spawnTDMob(vindicator, "&4&lslasher", 90, 0.3, 14)
+            else:
+                if random integer between 1 and 2 is 1:
+                    spawnTDMob(ravager, "&5&lRavager King", 200, 0.12, 40)
+                else:
+                    spawnTDMob(iron golem, "&c&lGolem Boss", 250, 0.25, 70)
+            
+            loop arg-1 times:
+                wait 1 second
+                if {td.active} is not set:
+                    stop
+
+command /td-stop:	
+    permission: op
+    trigger:
+        delete {td.active}
+        send "§c[TD] Остановлено." to player
+
+# Блок наград (on death) оставь из прошлого сообщения, он верный.
+
+
+
+
+command /td-speed <number>:
+    permission: op
+    trigger:
+        if arg-1 < 1:
+            set {td.spawn_interval} to 1
+        else if arg-1 > 10:
+            set {td.spawn_interval} to 10
+        else:
+            set {td.spawn_interval} to arg-1
+        send "§e[TD] Скорость спавна изменена на: %{td.spawn_interval}% сек."
+
+
+
+# ==========================================
+# ЛОГИКА НАГРАД
+# ==========================================
+on death:
+    # Проверяем, наш ли это моб (через метаданные)
+    if metadata value "td_mob" of victim is "true":
+        
+        # Определяем, кто получит награду
+        if attacker is a player:
+            set {_p} to attacker
+            set {_prefix} to "&a✅ Вы убили"
+        else if {dog.entity.%attacker%} is set:
+            set {_p} to {dog.entity.%attacker%}
+            set {_prefix} to "&b🐶 Собака убила"
+        
+        # Если убийца опознан (игрок или его собака)
+        if {_p} is set:
+            clear drops
+            set {_n} to colored name of victim
+            
+            # --- ТАБЛИЦА НАГРАД ---
+            if {_n} is "&a&lwalker":
+                set {_m} to 15
+                set {_g} to 1
+                set {_t} to "&aмедленный"
+            else if {_n} is "&7&lbones":
+                set {_m} to 30
+                set {_g} to 1
+                set {_t} to "&aобычный"
+            else if {_n} is "&6&ldesert brute":
+                set {_m} to 180
+                set {_g} to 2
+                set {_t} to "&eредкий"
+            else if {_n} is "&8&lcrawler":
+                set {_m} to 149
+                set {_g} to 2
+                set {_t} to "&aбыстрый"
+            else if {_n} is "&4&lslasher":
+                set {_m} to 450
+                set {_g} to 4
+                set {_t} to "&cэпический"
+            else if {_n} is "&c&lGolem Boss":
+                set {_m} to 2100
+                set {_g} to 10
+                set {_t} to "&dБОСС"
+            else if {_n} is "&e&ltank":
+                set {_m} to 135
+                set {_g} to 3
+                set {_t} to "&eредкий медленный"
+            else if {_n} is "&5&lRavager King":
+                set {_m} to 1200
+                set {_g} to 8
+                set {_t} to "&dБОСС медленный"
+            else if {_n} is "&b&lsea reaper":
+                set {_m} to 300
+                set {_g} to 3
+                set {_t} to "&cэпический"
+
+            # --- ВЫДАЧА ---
+            add {_m} to balance of {_p}
+            if {_g} > 0:
+                give {_g} of gold nugget to {_p}
+            
+            # Красивое сообщение
+            send "%{_prefix}% %{_t}% &fмоба! &7(+%{_m}%¥)" to {_p}
+
+
+
+
+# ==========================================
+# КОМАНДА ВХОДА
+# ==========================================
+command /defence:
+    trigger:
+        if {defence.%player%} is set:
+            send "§c「❕」Вы уже на арене!"
+            stop
+            
+        set {defence.backloc.%player%} to location of player
+        execute console command "/inv save %player%"
+        
+        clear player's inventory
+        execute console command "/iagive %player% mypack:wooden_sword"
+        give 5 of cooked beef named "&6Еда" to player
+        set slot 8 of player's inventory to barrier named "&c🚪 Выход" with lore "&7Нажми ЛКМ для выхода с арены"
+        
+        set {defence.%player%} to 1
+        teleport player to location(366, 31, -84, world "voidworld", 90, 0)
+        
+        # --- АВТО-ПРИЗЫВ СОБАКИ ---
+        if {dog.own.%player%} is true:
+            # Спавним в начале пути (где спавн обычно разрешен) и сразу ТП к игроку
+            spawn 1 wolf at location(358, 32, -102, world "voidworld")
+            set {_d} to last spawned entity
+            set {dog.active.%player%} to {_d}
+            set {dog.entity.%{_d}%} to player
+            tame {_d} to player
+            set display name of {_d} to "§bСобака §7- %player%"
+            
+            # Установка скорости
+            set {_speed} to 0.3 + ({dog.level.speed.%player%} * 0.05)
+            set generic movement speed attribute of {_d} to {_speed}
+            
+            # Мгновенный перенос к владельцу на арену
+            teleport {_d} to player
+            send "&a[!] Ваша собака призвана автоматически!" to player
+        
+        send "&a&l[!] &fВы вошли! Спавн начнется через 3 секунды." to player
+        
+        if {td.active} is not set:
+            set {td.active} to true
+            startSpawner()
+# ==========================================
+# КОМАНДА ВЫХОДА
+# ==========================================
+command /leavedefence:
+    trigger:
+        if {defence.%player%} is not set:
+            stop
+        
+        # --- УДАЛЕНИЕ СОБАКИ ---
+        if {dog.active.%player%} is set:
+            kill {dog.active.%player%}
+            delete {dog.active.%player%}
+            delete {dog.entity.%{dog.active.%player%}%}
+
+        clear player's inventory
+        execute console command "/inv load %player%"
+        teleport player to {defence.backloc.%player%}
+        delete {defence.%player%}
+        delete {defence.backloc.%player%}
+        send "§e[!] Вы вышли с арены. Собака отозвана."
+on command:
+    if command starts with "td-":
+        # Разрешаем админам (OP) использовать команды везде для тестов
+        if player is not op:
+            if {defence.%player%} is not set:
+                cancel event
+                send "§c[!] Эти команды доступны только на арене (/defence)!" to player
+
+# ==========================================
+# ОБРАБОТКА СМЕРТИ (Авто-выход)
+# ==========================================
+on death of player:
+    if {defence.%victim%} is 1:
+        cancel event
+        set health of victim to 20
+        set food level of victim to 20
+        
+        send "&cВы погибли на арене! Автоматический выход..." to victim
+        wait 1 tick
+        # Вызываем функцию выхода напрямую
+        make victim execute command "leavedefence"
+
+# ==========================================
+# ЗАЩИТА ОТ БАГОВ И ПРОВЕРКИ
+# ==========================================
+
+# Блокировка команд (ТОЛЬКО ДЛЯ ИГРОКОВ НА АРЕНЕ)
+on command:
+    if sender is player: # Важно! Консоль теперь игнорируется
+        if {defence.%player%} is 1:
+            if player is not op:
+                if command is not "leavedefence" or "l" or "td-menu" or "td-dog" or "td-dog-up" or "td-buy-dog":
+                    cancel event
+                    send "&cКоманды заблокированы! Используй /leavedefence"
+
+on right click:
+    if {defence.%player%} is 1:
+        if player's tool is barrier named "&c🚪 Выход":
+            cancel event
+            execute player command "/leavedefence"
+
+
+# Защита от выхода с сервера (чтобы не забагать инвентарь)
+
+
+
+
+
+function startSpawner():
+    while {td.active} is true:
+        # Проверка: есть ли хоть кто-то на арене?
+        set {_players} to 0
+        loop all players:
+            if {defence.%loop-player%} is 1:
+                add 1 to {_players}
+        
+        if {_players} is 0:
+            send "§7[TD] На арене пусто. Выключение спавна через 10 сек..." to console
+            wait 10 seconds
+            # Перепроверяем через 10 сек
+            set {_players} to 0
+            loop all players:
+                if {defence.%loop-player%} is 1:
+                    add 1 to {_players}
+            if {_players} is 0:
+                delete {td.active}
+                stop
+        
+        # ЛОГИКА РАНДОМА (Твои мобы)
+        set {_r} to random integer between 1 and 100
+        if {_r} <= 40:
+            spawnTDMob(zombie, "&a&lwalker", 30, 0.16, 1)
+        else if {_r} <= 65:
+            spawnTDMob(skeleton, "&7&lbones", 25, 0.2, 1)
+        else if {_r} <= 80:
+            if random integer between 1 and 2 is 1:
+                spawnTDMob(zombie, "&e&ltank", 60, 0.1, 4)
+            else:
+                spawnTDMob(spider, "&8&lcrawler", 35, 0.35, 5)
+        else if {_r} <= 90:
+            set {_sub} to random integer between 1 and 3
+            if {_sub} is 1:
+                spawnTDMob(husk, "&6&ldesert brute", 70, 0.18, 6)
+            else if {_sub} is 2:
+                spawnTDMob(drowned, "&b&lsea reaper", 85, 0.2, 10)
+            else:
+                spawnTDMob(vindicator, "&4&lslasher", 90, 0.3, 14)
+        else:
+            if random integer between 1 and 2 is 1:
+                spawnTDMob(ravager, "&5&lRavager King", 200, 0.12, 40)
+            else:
+                spawnTDMob(iron golem, "&c&lGolem Boss", 250, 0.25, 70)
+        
+        # Ждем интервал, который можно менять командой /td-speed
+        set {_waited} to 0
+        while {_waited} < {td.spawn_interval}:
+            wait 1 second
+            add 1 to {_waited}
+            if {td.active} is not set:
+                stop
+
+
+
+# Открытие меню управления скоростью
+command /td-menu:
+    trigger:
+        if player is not op:
+            if {defence.%player%} is not set:
+                send "§c[!] Меню доступно только на арене!" to player
+                stop
+        openMainTDMenu(player)
+
+function openMainTDMenu(p: player):
+    set {_gui} to chest inventory with 3 rows named "§0Управление TD"
+    loop 27 times:
+        set slot (loop-number - 1) of {_gui} to gray stained glass pane named " "
+    
+    # Кнопка: Настройка мобов
+    set slot 11 of {_gui} to clock named "§e⚙ Настройка Волн" with lore "§7Изменение скорости спавна мобов", "", "§e» Нажми, чтобы войти"
+    
+    # Кнопка: Собака
+    set slot 15 of {_gui} to bone named "§b🐶 Моя Собака" with lore "§7Прокачка урона и скорости пса", "", "§e» Нажми, чтобы войти"
+    
+    # Кнопка: Сброс (Редстоун) на последний слот (26)
+    set slot 26 of {_gui} to redstone named "§c🆘 Перезагрузка арены" with lore "§7Нажми, если спавн забагался", "§7Выполнит принудительную остановку"
+    
+    open {_gui} to {_p}
+
+# ==========================================
+# ОБРАБОТКА КЛИКОВ (ГЛАВНОЕ МЕНЮ)
+# ==========================================
+on inventory click:
+    if name of event-inventory is "§0Управление TD":
+        cancel event
+        
+        # Кнопка настройки волн
+        if index of event-slot is 11:
+            openTDMenu(player)
+            
+        # Кнопка прокачки собаки
+        if index of event-slot is 15:
+            if {dog.own.%player%} is not set:
+                send "§c[!] У вас еще нет собаки! Купите её в магазине. /td-buy-dog" to player 
+                close player's inventory 
+                stop
+            openDogMenu(player)
+            
+        # Кнопка перезагрузки арены (редстоун)
+        if index of event-slot is 26:
+            execute console command "td-stop" # Выполняем команду остановки
+            send "§a[!] Команда перезагрузки отправлена!" to player
+            wait 3 seconds
+            execute console command "td-start 5" # Выполняем команду остановки
+            send "§a[!] Арена перезагружена!" to player
+            close player's inventory
+
+
+# ==========================================
+# ФУНКЦИЯ ОТКРЫТИЯ МЕНЮ
+# ==========================================
+function openTDMenu(p: player):
+    set {_gui} to chest inventory with 3 rows named "§0Настройка сложности"
+    
+    # Фон (заполняем пустые слоты серыми стеклышками для красоты)
+    loop 27 times:
+        set slot (loop-number - 1) of {_gui} to gray stained glass pane named " "
+    
+    # --- Кнопка УМЕНЬШЕНИЯ (-1 сек) ---
+    # Если используешь ItemsAdder, замени на: custom item "имя_предмета"
+    set slot 11 of {_gui} to paper named "§c« Меньше" with lore "§7Уменьшить интервал на 1 сек" with custom model data 10000
+    
+    # --- ИНФОРМАЦИЯ (Центр) ---
+    set {_item} to clock
+    if {td.spawn_interval} <= 3:
+        set {_item} to compass # Визуально меняем предмет если скорость высокая
+    if {td.spawn_interval} >= 7:
+        set {_item} to recovery compass # Визуально меняем предмет если скорость высокая
+    set slot 13 of {_gui} to {_item} named "§eТекущая скорость" with lore " §fИнтервал: §a%{td.spawn_interval}% сек.","","  §x§F§F§0§0§0§0§lЦена: ¥ 100"
+    
+    # --- Кнопка УВЕЛИЧЕНИЯ (+1 сек) ---
+    set slot 15 of {_gui} to paper named "§aБольше »" with lore "§7Увеличить интервал на 1 сек" with custom model data 10001
+    set slot 22 of {_gui} to arrow named "§7« Назад"
+    open {_gui} to {_p}
+
+# ==========================================
+# ОБРАБОТКА КЛИКОВ
+# ==========================================
+on inventory click:
+    if name of event-inventory is "§0Настройка сложности":
+        cancel event
+        if index of event-slot is 22:
+            openMainTDMenu(player)
+        # ЛОГИКА ИЗМЕНЕНИЯ СКОРОСТИ
+        if index of event-slot is 11 or 15:
+            # 1. Проверка на лимиты (чтобы зря деньги не снимать)
+            if index of event-slot is 11:
+                if {td.spawn_interval} <= 1:
+                    send "§c「❕」Уже максимальная скорость!" to player
+                    stop
+            if index of event-slot is 15:
+                if {td.spawn_interval} >= 10:
+                    send "§c「❕」Уже минимальная скорость!" to player
+                    stop
+
+            # 2. Проверка денег
+            if balance of player < 100:
+                send "§c「❕」Недостаточно денег! Нужно 100¥" to player
+                play sound "entity.villager.no" with volume 0.5 to player
+                stop
+
+            # 3. Списание и действие
+            remove 100 from balance of player
+            
+            if index of event-slot is 11:
+                remove 1 from {td.spawn_interval}
+            else:
+                add 1 to {td.spawn_interval}
+            
+            play sound "my_server:click" with volume 1 to player
+            send "§e「❕」Списано 100¥ за изменение скорости." to player
+            openTDMenu(player) # Обновляем меню
+
+# ==========================================
+# ПРЕДМЕТ ДЛЯ ОТКРЫТИЯ (вход в /defence)
+# ==========================================
+# Добавь эту строку в свою команду /defence, чтобы выдать "пульт"
+# give 1 paper named "§b⚙ Настройка TD" to player
+
+on right click:
+    if name of player's tool is "§b⚙ Настройка TD":
+        cancel event
+        openTDMenu(player)
+
+
+
+
+
+
+
+
+
+
+# Настройки собаки по умолчанию при покупке
+command /td-buy-dog:
+    trigger:
+        if {dog.own.%player%} is set:
+            send "§c[!] У вас уже есть собака!"
+            stop
+        if balance of player < 500:
+            send "§c[!] Нужно 500¥ для покупки собаки."
+            stop
+        remove 500 from balance of player
+        set {dog.own.%player%} to true
+        set {dog.level.damage.%player%} to 1
+        set {dog.level.speed.%player%} to 1
+        send "§a[!] Вы купили боевую собаку! Используйте /dog чтобы призвать."
+
+# Команда призыва/отзыва
+command /td-dog:
+    trigger:
+        if {dog.own.%player%} is not set:
+            send "§c[!] У вас нет собаки. Купите её за 500¥."
+            stop
+        
+        if {dog.active.%player%} is set:
+            # Отзыв
+            delete {dog.entity.%player%}
+            kill {dog.active.%player%}
+            delete {dog.active.%player%}
+            send "§e[!] Собака отозвана."
+        else:
+            # Призыв
+            spawn 1 wolf at location(358, 32, -102, world "voidworld")
+            set {_d} to last spawned entity
+            set {dog.active.%player%} to {_d}
+            set {dog.entity.%{_d}%} to player
+            
+            # ИСПРАВЛЕНИЕ: Приручение
+            tame {_d} to player 
+            
+            set display name of {_d} to "§bСобака §7- %player%"
+            
+            # ИСПРАВЛЕНИЕ: Установка скорости (используем базовое значение атрибута)
+            set {_speed} to 0.3 + ({dog.level.speed.%player%} * 0.05)
+            set generic movement speed attribute of {_d} to {_speed}
+            teleport {_d} to player
+            send "§a[!] Собака призвана!"
+
+on damage:
+    if {dog.entity.%attacker%} is set:
+        set {_owner} to {dog.entity.%attacker%}
+        
+        # Расчет урона
+        set {_lvl} to {dog.level.damage.%{_owner}%}
+        if {_lvl} is not set:
+            set {_lvl} to 1
+        set {_final_damage} to 4 + ({_lvl} * 1.5)
+
+        # ПРОВЕРКА ЧЕРЕЗ METADATA
+        if metadata value "td_mob" of victim is "true":
+            set damage to {_final_damage}
+#           send "§a[DOG HIT] Урон %{_final_damage}% нанесен!" to console
+#        else:
+#            send "§7[DEBUG] Моб %victim% не имеет метаданных TD" to console
+
+
+
+
+command /td-dog-up:
+    trigger:
+        if {dog.own.%player%} is not set:
+            stop
+        openDogMenu(player)
+
+function openDogMenu(p: player):
+    set {_gui} to chest inventory with 3 rows named "§0Прокачка Собаки"
+    loop 27 times:
+        set slot (loop-number - 1) of {_gui} to gray stained glass pane named " "
+        
+    # --- ЛОГИКА КНОПКИ ПОКУПКИ/СТАТУСА ---
+    if {dog.own.%{_p}%} is not set:
+        set slot 13 of {_gui} to gold ingot named "§6§lКУПИТЬ СОБАКУ" with lore "§7Стоимость: §e500¥", "", "§eКлик - приобрести верного друга"
+    else:
+        # Если собака уже есть, показываем кнопку призыва/отзыва
+        if {dog.active.%{_p}%} is set:
+            set slot 13 of {_gui} to redstone named "§cОтправить домой" with lore "§7Ваша собака сейчас на арене.", "", "§eКлик - отозвать"
+        else:
+            set slot 13 of {_gui} to lead named "§aПризвать собаку" with lore "§7Ваша собака отдыхает.", "", "§eКлик - вызвать на помощь"
+
+        # --- СЛОТЫ ПРОКАЧКИ (показываем только если собака куплена) ---
+        set {_costD} to {dog.level.damage.%{_p}%} * 200
+        set slot 11 of {_gui} to iron sword named "§cСила (Ур. %{dog.level.damage.%{_p}%}%)" with lore "§7Увеличивает урон собаки", "§7Цена: §e%{_costD}%¥", "", "§eКлик - прокачать"
+        
+        set {_costS} to {dog.level.speed.%{_p}%} * 150
+        set slot 15 of {_gui} to sugar named "§bСкорость (Ур. %{dog.level.speed.%{_p}%}%)" with lore "§7Увеличивает скорость бега", "§7Цена: §e%{_costS}%¥", "", "§eКлик - прокачать"
+
+    set slot 22 of {_gui} to arrow named "§7« Назад"
+    open {_gui} to {_p}
+
+on inventory click:
+    if name of event-inventory is "§0Прокачка Собаки":
+        cancel event
+        set {_p} to player
+        set {_bal} to player's balance # Фиксируем баланс в переменную сразу
+        
+        # Кнопка НАЗАД
+        if index of event-slot is 22:
+            openMainTDMenu({_p})
+            stop
+
+        # --- ЛОГИКА ПОКУПКИ / ПРИЗЫВА (Слот 13) ---
+        if index of event-slot is 13:
+            if {dog.own.%{_p}%} is not set:
+                set {_cost} to 500
+                if {_bal} >= {_cost}:
+                    remove {_cost} from player's balance
+                    set {dog.own.%{_p}%} to true
+                    set {dog.level.damage.%{_p}%} to 1
+                    set {dog.level.speed.%{_p}%} to 1
+                    send "§a[!] Вы купили собаку!" to {_p}
+                    play sound "entity.wolf.ambient" to {_p}
+                    openDogMenu({_p})
+                else:
+                    set {_need} to {_cost} - {_bal}
+                    send "§c[!] Недостаточно денег! Нужно еще %{_need}%¥" to {_p}
+            else:
+                # Логика призыва/отзыва (тут деньги не нужны)
+                if {dog.active.%{_p}%} is set:
+                    kill {dog.active.%{_p}%}
+                    delete {dog.active.%{_p}%}
+                    send "§e[!] Собака отозвана." to {_p}
+                else:
+                    make {_p} execute command "td-dog" # Используем твою команду призыва
+                openDogMenu({_p})
+
+        # --- ПРОКАЧКА УРОНА (Слот 11) ---
+        if index of event-slot is 11:
+            if {dog.own.%{_p}%} is set:
+                set {_lvl} to {dog.level.damage.%{_p}%}
+                set {_cost} to {_lvl} * 200
+                if {_bal} >= {_cost}:
+                    remove {_cost} from player's balance
+                    add 1 to {dog.level.damage.%{_p}%}
+                    send "§a[!] Урон повышен до %{dog.level.damage.%{_p}%}%!" to {_p}
+                    play sound "entity.player.levelup" with volume 0.5 to {_p}
+                    openDogMenu({_p})
+                else:
+                    set {_need} to {_cost} - {_bal}
+                    send "§c[!] Недостаточно денег! Нужно еще %{_need}%¥" to {_p}
+
+        # --- ПРОКАЧКА СКОРОСТИ (Слот 15) ---
+        if index of event-slot is 15:
+            if {dog.own.%{_p}%} is set:
+                set {_lvl} to {dog.level.speed.%{_p}%}
+                set {_cost} to {_lvl} * 150
+                if {_bal} >= {_cost}:
+                    remove {_cost} from player's balance
+                    add 1 to {dog.level.speed.%{_p}%}
+                    if {dog.active.%{_p}%} is set:
+                        set {_speed} to 0.3 + ({dog.level.speed.%{_p}%} * 0.05)
+                        set generic movement speed attribute of {dog.active.%{_p}%} to {_speed}
+                    send "§a[!] Скорость повышена до %{dog.level.speed.%{_p}%}%!" to {_p}
+                    play sound "entity.player.levelup" with volume 0.5 to {_p}
+                    openDogMenu({_p})
+                else:
+                    set {_need} to {_cost} - {_bal}
+                    send "§c[!] Недостаточно денег! Нужно еще %{_need}%¥" to {_p}
+
+on join:
+    # Если игрок вышел, находясь на арене, переменная {defence.%player%} сохранится.
+    # При заходе мы это проверяем:
+    if {defence.%player%} is set:
+        # Телепортируем на точку выхода (на всякий случай)
+        if {defence.backloc.%player%} is set:
+            teleport player to {defence.backloc.%player%}
+        else:
+            # Если точка выхода вдруг не сохранилась - на спавн мира
+            execute console command "spawn %player%"
+            
+        # Очищаем всё
+        clear player's inventory
+        execute console command "/inv load %player%"
+        #execute player command "spawn"
+        
+        # Убираем собаку, если она осталась "висеть"
+        if {dog.active.%player%} is set:
+            kill {dog.active.%player%}
+            delete {dog.active.%player%}
+            
+        delete {defence.%player%}
+        delete {defence.backloc.%player%}
+        
+        send "§c[!] Вы покинули игру во время боя. Вы были возвращены на спавн." to player
+
+# ==========================================
+# КОМАНДА СБРОСА СОБАКИ
+# ==========================================
+# ==========================================
+# КОМАНДА СБРОСА (АДМИНСКАЯ)
+# ==========================================
+command /td-dog-reset <player>:
+    permission: op
+    permission message: §c[!] У вас нет прав на эту команду.
+    trigger:
+        set {_t} to arg-1 # Тот, кому сбрасываем
+        
+        if {dog.own.%{_t}%} is not set:
+            send "§c[!] У игрока %{_t}% нет собаки." to player
+            stop
+        
+        # Сбрасываем переменные в 1
+        set {dog.level.damage.%{_t}%} to 1
+        set {dog.level.speed.%{_t}%} to 1
+        
+        # Если собака игрока сейчас призвана — фиксим ей скорость в реальном времени
+        if {dog.active.%{_t}%} is set:
+            set generic movement speed attribute of {dog.active.%{_t}%} to 0.35
+            
+        send "§a[!] Вы успешно сбросили характеристики собаки игрока %{_t}%." to player
+        send "§e[!] Администратор сбросил характеристики вашей собаки до 1 уровня!" to {_t}
+        play sound "entity.wolf.shake" with volume 1 to {_t}
