@@ -1,0 +1,100 @@
+# Команда для открытия банкомата
+command /atm:
+    trigger:
+        open_atm(player)
+
+on tab complete of "/take":
+    set tab completions for position 1 to "100", "500", "1000", "5000" and "10000"
+    set tab completions for position 2 to "1", "5", "10", "32" and "64"
+
+# Команда для снятия пачками
+command /take [<number>] [<integer>]:
+    usage: &cИспользуйте: /take (номинал) (количество)
+    trigger:
+        set {_nom} to arg-1
+        set {_count} to arg-2
+        
+        if {_nom} is not set:
+            send "&c&lБАНКОМАТ &8| &cУкажите номинал (100, 500, 1000, 5000, 10000)"
+            stop
+        if {_count} is not set:
+            set {_count} to 1
+            
+        if {_count} <= 0:
+            send "&c&lБАНКОМАТ &8| &cКоличество должно быть больше нуля!"
+            stop
+
+        if {_nom} is not 100 or 500 or 1000 or 5000 or 10000:
+            send "&c&lБАНКОМАТ &8| &cНедопустимый номинал!"
+            send "&7Доступные купюры: &f¥100, ¥500, ¥1000, ¥5000, ¥10000"
+            stop
+
+        set {_total} to ({_nom} * {_count})
+
+        if player's balance < {_total}:
+            send "&c&lБАНКОМАТ &8| &cУ тебя недостаточно денег!"
+            send "&7Нужно: &e¥%{_total}% &7| Баланс: &e¥%player's balance%"
+            play sound "entity.villager.no" to player
+            stop
+
+        loop {_count} times:
+            make player execute command "pmoney take %{_nom}%"
+            
+        send "&a&lУСПЕХ &8| &fВы получили &e%{_count}% &fшт. по &e¥%{_nom}%" to player
+        send "&7Списано: &c¥%{_total}%" to player
+        play sound "entity.experience_orb.pickup" to player
+
+# Функция меню
+function open_atm(p: player):
+    set {_gui} to chest inventory with 3 rows named " &x&F&F&8&3&D&8&l💸&x&F&9&8&0&D&9&l. &x&E&C&7&9&D&C&l݁&x&E&6&7&6&D&D&l₊&x&D&F&7&3&D&E&l⊹&x&D&9&6&F&E&0&l. &x&C&C&6&9&E&2&l݁&x&C&6&6&5&E&3&l⟡ &x&B&9&5&F&E&6&lБ&x&B&3&5&C&E&7&lа&x&A&D&5&8&E&8&lн&x&A&6&5&5&E&A&lк&x&A&0&5&2&E&B&lо&x&9&A&4&E&E&C&lм&x&9&4&4&B&E&D&lа&x&8&D&4&8&E&F&lт &x&8&1&4&1&F&1&l⟡ &x&7&4&3&B&F&4&l݁&x&6&E&3&7&F&5&l.&x&6&7&3&4&F&6&l⊹&x&6&1&3&1&F&7&l₊ &x&5&4&2&A&F&A&l݁&x&4&E&2&7&F&B&l.&x&4&8&2&4&F&C&l💸"
+    loop 27 times:
+        set slot (loop-number - 1) of {_gui} to gray stained glass pane named " "
+    
+    set slot 10 of {_gui} to paper with custom model data 10201 named "&eСнять &a¥100"
+    set slot 11 of {_gui} to paper with custom model data 10201 named "&eСнять &a¥500"
+    set slot 12 of {_gui} to paper with custom model data 10201 named "&eСнять &a¥1,000"
+    set slot 13 of {_gui} to paper with custom model data 10201 named "&eСнять &a¥5,000"
+    set slot 14 of {_gui} to paper with custom model data 10201 named "&eСнять &a¥10,000"
+    
+    set slot 4 of {_gui} to book named "&6&lСПРАВКА" with lore "&7Здесь вы можете обменять свой" and "&7банковский счет на наличные йены." and "" and "&e• Клик по купюре &7- снять 1 шт." and "&e• Золотой слиток &7- снять пачкой."
+    
+    set slot 16 of {_gui} to gold ingot named "&6Снять пачку" with lore "&7Нажмите, чтобы подготовить" and "&7команду в чате." and "" and "&7Формат: &f/take (номинал) (кол-во)"
+    
+    open {_gui} to {_p}
+
+# Обработка кликов
+on inventory click:
+    if name of event-inventory is " &x&F&F&8&3&D&8&l💸&x&F&9&8&0&D&9&l. &x&E&C&7&9&D&C&l݁&x&E&6&7&6&D&D&l₊&x&D&F&7&3&D&E&l⊹&x&D&9&6&F&E&0&l. &x&C&C&6&9&E&2&l݁&x&C&6&6&5&E&3&l⟡ &x&B&9&5&F&E&6&lБ&x&B&3&5&C&E&7&lа&x&A&D&5&8&E&8&lн&x&A&6&5&5&E&A&lк&x&A&0&5&2&E&B&lо&x&9&A&4&E&E&C&lм&x&9&4&4&B&E&D&lа&x&8&D&4&8&E&F&lт &x&8&1&4&1&F&1&l⟡ &x&7&4&3&B&F&4&l݁&x&6&E&3&7&F&5&l.&x&6&7&3&4&F&6&l⊹&x&6&1&3&1&F&7&l₊ &x&5&4&2&A&F&A&l݁&x&4&E&2&7&F&B&l.&x&4&8&2&4&F&C&l💸":
+        if event-inventory is not player's inventory:
+            cancel event # Отменяем клик только в меню, чтобы нельзя было забрать стекло
+            set {_p} to player
+
+            if index of event-slot is 16:
+                close {_p}'s inventory
+                send "" to {_p}
+                send "&6&l[БАНКОМАТ] &e&lИНСТРУКЦИЯ ПО СНЯТИЮ ПАЧКИ:" to {_p}
+                send "&71. Нажмите на текст ниже." to {_p}
+                send "&72. Допишите номинал (&f100, 500, 1000, 5000, 10000&7)." to {_p}
+                send "&73. Через пробел допишите количество (например &f3&7)." to {_p}
+                send "&74. Итог будет выглядеть так: &e/take 5000 3" to {_p}
+                send "" to {_p}
+
+                # Интерактивная строка
+                execute console command "/tellraw %{_p}% [{""text"":""&a&l[ ПОДГОТОВИТЬ КОМАНДУ ]"",""clickEvent"":{""action"":""suggest_command"",""value"":""/take ""},""hoverEvent"":{""action"":""show_text"",""contents"":[""&7Нажми, чтобы вставить команду в чат""]}}]"
+                stop
+
+            set {_amt} to 0
+            if index of event-slot is 10:
+                set {_amt} to 100
+            else if index of event-slot is 11:
+                set {_amt} to 500
+            else if index of event-slot is 12:
+                set {_amt} to 1000
+            else if index of event-slot is 13:
+                set {_amt} to 5000
+            else if index of event-slot is 14:
+                set {_amt} to 10000
+
+            if {_amt} > 0:
+                make {_p} execute command "take %{_amt}% 1"
+                close {_p}'s inventory
