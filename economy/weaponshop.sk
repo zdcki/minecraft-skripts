@@ -1,0 +1,683 @@
+#command /weaponshop:
+#    permission: custom.weaponshop
+#    trigger:
+    
+on npc right click:
+    if name of event-npc is "CIT-d344a5f651fc":  # Или замени на полное имя из storage: "Нажми, чтоб открыть меню"
+    
+        open chest inventory with 6 rows named "&8⚔ &6&lОРУЖЕЙНАЯ &8» &7Магазин оружия" to player
+        
+        # Заполняем весь фон черной стеклянной панелью
+        set {_i} to 0
+        loop 54 times:
+            set slot {_i} of player's current inventory to black stained glass pane named "&8⬛" with lore "&7"
+            add 1 to {_i}
+
+        # Добавляем серые стеклянные панели
+        set slot 12 of player's current inventory to gray stained glass pane named "&7⬜" with lore "&7"
+        set slot 14 of player's current inventory to gray stained glass pane named "&7⬜" with lore "&7"
+        set slot 28 of player's current inventory to gray stained glass pane named "&7⬜" with lore "&7"
+        set slot 34 of player's current inventory to gray stained glass pane named "&7⬜" with lore "&7"
+
+        # Добавляем зеленые стеклянные панели
+        set slot 45 of player's current inventory to lime stained glass pane named "&2⬛" with lore "&7"
+        set slot 49 of player's current inventory to lime stained glass pane named "&2⬛" with lore "&7"
+        set slot 53 of player's current inventory to lime stained glass pane named "&2⬛" with lore "&7"
+        
+
+
+
+        # Подсчет золота
+        set {_gold} to 0
+        loop all items in player's inventory:
+            if loop-item is gold nugget:
+                add amount of loop-item to {_gold}
+                
+        set {_ingots} to 0
+        loop all items in player's inventory:
+            if loop-item is gold ingot:
+                add amount of loop-item to {_ingots}
+
+        
+
+        # Базовые мечи (горизонтальный ряд)
+        set slot 38 of player's current inventory to wooden sword named "&f🗡 &fДеревянный меч" with lore "&7Простой деревянный меч", "", "&6⚡ &eХарактеристики:", "&7▪ Урон: &f4", "&7▪ Прочность: &f59", "", "&e💰 &6Цена: &e1 золотой самородок", "", "&a▸ &eЛКМ - купить"
+        set slot 39 of player's current inventory to stone sword named "&7🗡 &7Каменный меч" with lore "&7Надежный каменный меч", "", "&6⚡ &eХарактеристики:", "&7▪ Урон: &f5", "&7▪ Прочность: &f131", "", "&e💰 &6Цена: &62 золотых слитка", "", "&a▸ &eЛКМ - купить"
+        set slot 40 of player's current inventory to iron sword named "&f🗡 &fЖелезный меч" with lore "&7Качественный железный меч", "", "&6⚡ &eХарактеристики:", "&7▪ Урон: &f6", "&7▪ Прочность: &f250", "", "&e💰 &6Цена: &68 золотых слитков", "", "&a▸ &eЛКМ - купить"
+        set slot 41 of player's current inventory to diamond sword named "&b🗡 &bАлмазный меч" with lore "&7Мощный алмазный меч", "", "&6⚡ &eХарактеристики:", "&7▪ Урон: &f7", "&7▪ Прочность: &f1561", "", "&e💰 &6Цена: &616 золотых слитков", "", "&a▸ &eЛКМ - купить"
+        set slot 42 of player's current inventory to netherite sword named "&8🗡 &8Незеритовый меч" with lore "&7Легендарный незеритовый меч", "", "&6⚡ &eХарактеристики:", "&7▪ Урон: &f8", "&7▪ Прочность: &f2031", "", "&e💰 &6Цена: &632 золотых слитка", "", "&a▸ &eЛКМ - купить"
+
+        # Острота (вертикальная колонка)
+        set slot 29 of player's current inventory to enchanted book named "&e📖 &eОстрота I" with lore "&7Увеличивает урон меча", "", "&6⚡ &eЭффект:", "&7▪ +1 урона ко всем мобам", "", "&a💰 &2Цена: &a100 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 30 of player's current inventory to enchanted book named "&6📖 &6Острота II" with lore "&7Сильно увеличивает урон меча", "", "&6⚡ &eЭффект:", "&7▪ +1.25 урона ко всем мобам", "", "&a💰 &2Цена: &a250 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 31 of player's current inventory to enchanted book named "&c📖 &cОстрота III" with lore "&7Значительно увеличивает урон", "", "&6⚡ &eЭффект:", "&7▪ +1.5 урона ко всем мобам", "", "&a💰 &2Цена: &a500 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 32 of player's current inventory to enchanted book named "&4📖 &4Острота IV" with lore "&7Огромное увеличение урона", "", "&6⚡ &eЭффект:", "&7▪ +1.75 урона ко всем мобам", "", "&a💰 &2Цена: &a1000 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 33 of player's current inventory to enchanted book named "&5📖 &5Острота V" with lore "&7Максимальное увеличение урона", "", "&6⚡ &eЭффект:", "&7▪ +2 урона ко всем мобам", "", "&a💰 &2Цена: &a2000 монет", "", "&a▸ &eЛКМ - купить"
+
+        # Огненный аспект (вертикальная колонка)
+        set slot 36 of player's current inventory to enchanted book named "&4📖 &4Огненный аспект I" with lore "&7Поджигает врагов при ударе", "", "&6⚡ &eЭффект:", "&7▪ Поджигает цель на 3 сек", "", "&a💰 &2Цена: &a200 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 44 of player's current inventory to enchanted book named "&c📖 &cОгненный аспект II" with lore "&7Сильно поджигает врагов", "", "&6⚡ &eЭффект:", "&7▪ Поджигает цель на 7 сек", "", "&a💰 &2Цена: &a600 монет", "", "&a▸ &eЛКМ - купить"
+
+        # Прочность (вертикальная колонка)
+        set slot 15 of player's current inventory to enchanted book named "&a📖 &aПрочность I" with lore "&7Увеличивает прочность меча", "", "&6⚡ &eЭффект:", "&7▪ Шанс не тратить прочность +25", "", "&a💰 &2Цена: &a120 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 16 of player's current inventory to enchanted book named "&2📖 &2Прочность II" with lore "&7Сильно увеличивает прочность", "", "&6⚡ &eЭффект:", "&7▪ Шанс не тратить прочность +33", "", "&a💰 &2Цена: &a300 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 17 of player's current inventory to enchanted book named "&2📖 &2Прочность III" with lore "&7Максимальная прочность", "", "&6⚡ &eЭффект:", "&7▪ Шанс не тратить прочность +50", "", "&a💰 &2Цена: &a800 монет", "", "&a▸ &eЛКМ - купить"
+
+        # Разящий клинок (вертикальная колонка)
+        set slot 9 of player's current inventory to enchanted book named "&b📖 &bРазящий клинок I" with lore "&7Увеличивает урон по паукам", "", "&6⚡ &eЭффект:", "&7▪ +2.5 урона к членистоногим", "", "&a💰 &2Цена: &a160 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 10 of player's current inventory to enchanted book named "&1📖 &1Разящий клинок II" with lore "&7Сильно увеличивает урон по паукам", "", "&6⚡ &eЭффект:", "&7▪ +3 урона к членистоногим", "", "&a💰 &2Цена: &a400 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 11 of player's current inventory to enchanted book named "&d📖 &dРазящий клинок III" with lore "&7Максимальный урон по паукам", "", "&6⚡ &eЭффект:", "&7▪ +3.5 урона к членистоногим", "", "&a💰 &2Цена: &a1000 монет", "", "&a▸ &eЛКМ - купить"
+
+        # Особые зачарования для мечей
+        set slot 13 of player's current inventory to enchanted book named "&b📖 &bПочинка" with lore "&7Ремонтирует меч при получении опыта", "", "&6⚡ &eЭффект:", "&7▪ Восстанавливает прочность за опыт", "", "&a💰 &2Цена: &a5000 монет", "", "&a▸ &eЛКМ - купить"
+
+        # Еда и расходники (горизонтальный ряд)
+        set slot 46 of player's current inventory to cooked beef named "&c🍖 &cСтейк" with lore "&7Сытная еда", "", "&6⚡ &eЭффект:", "&7▪ Восстанавливает 4 единицы голода", "&7▪ +12.8 очков насыщения", "", "&e💰 &6Цена: &e9 золотых самородков", "", "&a▸ &eЛКМ - купить"
+        set slot 47 of player's current inventory to golden apple named "&6🍎 &6Золотое яблоко" with lore "&7Восстанавливает здоровье", "", "&6⚡ &eЭффект:", "&7▪ +2 сердца здоровья", "&7▪ Поглощение II (0:30)", "", "&a💰 &2Цена: &a100 монет", "", "&a▸ &eЛКМ - купить"
+        set slot 48 of player's current inventory to potion of strength named "&4🧪 &4Зелье силы" with lore "&7Увеличивает урон", "", "&6⚡ &eЭффект:", "&7▪ +130 урона в ближнем бою", "&7▪ Длительность: 3:00", "", "&a💰 &2Цена: &a112 монет", "", "&a▸ &eЛКМ - купить"
+        
+        # Гайд по магазину
+        set slot 52 of player's current inventory to book named "&e📚 &6Гайд по магазину" with lore "&7Как пользоваться магазином:", "", "&a▪ &eЛКМ &7- купить предмет", "&a▪ &eДержите меч в руке &7- для", "&7  зачарования", "&a▪ &6Золотые самородки &7- для", "&7  мечей и еды", "&a▪ &aМонеты &7- для зачарований", "&a▪ &6Слитки &7- для улучшения мечей", "", "&e▸ &6Обмен валюты &7внизу справа"
+
+        # Обмен валюты и информация
+        set slot 50 of player's current inventory to gold ingot named "&6🪙 &6Обмен валюты" with lore "&7Обменяйте самородки на слитки", "", "&e💰 &6Курс обмена:", "&79 золотых самородков = 1 золотой слиток", "", "&a▸ &eЛКМ - купить 1 слиток"
+        set slot 51 of player's current inventory to emerald named "&a💎 &aИнформация" with lore "&6🪙 &6Самородки: &e%{_gold}%", "&6⛃ &6Слитки: &e%{_ingots}%", "", "&7▸ Обновите инвентарь для", "&7обновления информации"
+
+on inventory click:
+    if name of player's current inventory is "&8⚔ &6&lОРУЖЕЙНАЯ &8» &7Магазин оружия":
+        cancel event
+        
+        set {_gold} to 0
+        loop all items in player's inventory:
+            if loop-item is gold nugget:
+                add amount of loop-item to {_gold}
+                
+        set {_ingots} to 0
+        loop all items in player's inventory:
+            if loop-item is gold ingot:
+                add amount of loop-item to {_ingots}
+        
+        # Покупка мечей
+        if event-slot is 38:
+            if {_gold} >= 1:
+                remove 1 gold nugget from player's inventory
+                execute console command "/iagive %player% mypack:wooden_sword"
+                send "&8[&6⚔&8] &aВы купили &fДеревянный меч &aза &e1 золотой самородок&a!" to player
+                send "&8[&6⚔&8] &7Меч добавлен в ваш инвентарь" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно золотых самородков! Нужно &e1&c." to player
+                
+        else if event-slot is 39:
+            if {_ingots} >= 2:
+                remove 2 gold ingot from player's inventory
+                execute console command "/iagive %player% mypack:stone_sword"
+                send "&8[&6⚔&8] &aВы купили &7Каменный меч &aза &62 золотых слитка&a!" to player
+                send "&8[&6⚔&8] &7Меч добавлен в ваш инвентарь" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно золотых слитков! Нужно &62&c." to player
+                
+        else if event-slot is 40:
+            if {_ingots} >= 8:
+                remove 8 gold ingot from player's inventory
+                execute console command "/iagive %player% mypack:iron_sword"
+                send "&8[&6⚔&8] &aВы купили &fЖелезный меч &aза &68 золотых слитков&a!" to player
+                send "&8[&6⚔&8] &7Меч добавлен в ваш инвентарь" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно золотых слитков! Нужно &68&c." to player
+                
+        else if event-slot is 41:
+            if {_ingots} >= 16:
+                remove 16 gold ingot from player's inventory
+                execute console command "/iagive %player% mypack:diamond_sword"
+                send "&8[&6⚔&8] &aВы купили &bАлмазный меч &aза &616 золотых слитков&a!" to player
+                send "&8[&6⚔&8] &7Меч добавлен в ваш инвентарь" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно золотых слитков! Нужно &616&c." to player
+        
+        else if event-slot is 42:
+            if {_ingots} >= 32:
+                remove 32 gold ingot from player's inventory
+                execute console command "/iagive %player% mypack:netherite_sword"
+                send "&8[&6⚔&8] &aВы купили &8Незеритовый меч &aза &632 золотых слитка&a!" to player
+                send "&8[&6⚔&8] &7Меч добавлен в ваш инвентарь" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно золотых слитков! Нужно &632&c." to player
+        
+        # Острота I
+        else if event-slot is 29:
+            if money of player >= 100:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_sharpness} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sharpness":
+                            set {_current_sharpness} to level of sharpness of {_tool}
+                    
+                    if {_current_sharpness} >= 1:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &eОстрота %{_current_sharpness}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 100"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sharpness 1
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &eОстрота I" to player
+                        send "&8[&6⚔&8] &7Списано: &a100 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a100 монет&c." to player
+                
+        # Острота II
+        else if event-slot is 30:
+            if money of player >= 250:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_sharpness} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sharpness":
+                            set {_current_sharpness} to level of sharpness of {_tool}
+                    
+                    if {_current_sharpness} >= 2:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &6Острота %{_current_sharpness}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 250"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sharpness 2
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &6Острота II" to player
+                        send "&8[&6⚔&8] &7Списано: &a250 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a250 монет&c." to player
+
+        # Острота III
+        else if event-slot is 31:
+            if money of player >= 500:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_sharpness} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sharpness":
+                            set {_current_sharpness} to level of sharpness of {_tool}
+                    
+                    if {_current_sharpness} >= 3:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &cОстрота %{_current_sharpness}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 500"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sharpness 3
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &cОстрота III" to player
+                        send "&8[&6⚔&8] &7Списано: &a500 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a500 монет&c." to player
+
+        # Острота IV
+        else if event-slot is 32:
+            if money of player >= 1000:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_sharpness} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sharpness":
+                            set {_current_sharpness} to level of sharpness of {_tool}
+                    
+                    if {_current_sharpness} >= 4:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &4Острота %{_current_sharpness}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 1000"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sharpness 4
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &4Острота IV" to player
+                        send "&8[&6⚔&8] &7Списано: &a1000 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a1000 монет&c." to player
+
+        # Острота V
+        else if event-slot is 33:
+            if money of player >= 2000:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_sharpness} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sharpness":
+                            set {_current_sharpness} to level of sharpness of {_tool}
+                    
+                    if {_current_sharpness} >= 5:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &5Острота %{_current_sharpness}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 2000"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sharpness 5
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &5Острота V" to player
+                        send "&8[&6⚔&8] &7Списано: &a2000 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a2000 монет&c." to player
+                
+        # Огненный аспект I
+        else if event-slot is 36:
+            if money of player >= 200:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_fire_aspect} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "fire aspect":
+                            set {_current_fire_aspect} to level of fire aspect of {_tool}
+                    
+                    if {_current_fire_aspect} >= 1:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &4Огненный аспект %{_current_fire_aspect}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 200"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with fire aspect 1
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &4Огненный аспект I" to player
+                        send "&8[&6⚔&8] &7Списано: &a200 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a200 монет&c." to player
+                
+        # Огненный аспект II
+        else if event-slot is 44:
+            if money of player >= 600:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_fire_aspect} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "fire aspect":
+                            set {_current_fire_aspect} to level of fire aspect of {_tool}
+                    
+                    if {_current_fire_aspect} >= 2:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &cОгненный аспект %{_current_fire_aspect}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 600"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with fire aspect 2
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &cОгненный аспект II" to player
+                        send "&8[&6⚔&8] &7Списано: &a600 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a600 монет&c." to player
+        
+        # Прочность I
+        else if event-slot is 15:
+            if money of player >= 120:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_unbreaking} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "unbreaking":
+                            set {_current_unbreaking} to level of unbreaking of {_tool}
+                    
+                    if {_current_unbreaking} >= 1:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &aПрочность %{_current_unbreaking}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 120"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with unbreaking 1
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &aПрочность I" to player
+                        send "&8[&6⚔&8] &7Списано: &a120 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a120 монет&c." to player
+                
+        # Прочность II
+        else if event-slot is 16:
+            if money of player >= 300:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_unbreaking} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "unbreaking":
+                            set {_current_unbreaking} to level of unbreaking of {_tool}
+                    
+                    if {_current_unbreaking} >= 2:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &2Прочность %{_current_unbreaking}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 300"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with unbreaking 2
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &2Прочность II" to player
+                        send "&8[&6⚔&8] &7Списано: &a300 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a300 монет&c." to player
+
+        # Прочность III
+        else if event-slot is 17:
+            if money of player >= 800:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_unbreaking} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "unbreaking":
+                            set {_current_unbreaking} to level of unbreaking of {_tool}
+                    
+                    if {_current_unbreaking} >= 3:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &2Прочность %{_current_unbreaking}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 800"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with unbreaking 3
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &2Прочность III" to player
+                        send "&8[&6⚔&8] &7Списано: &a800 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a800 монет&c." to player
+
+        # Разящий клинок I
+        else if event-slot is 9:
+            if money of player >= 160:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_bane} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sweeping edge":
+                            set {_current_bane} to level of sweeping edge of {_tool}
+                    
+                    if {_current_bane} >= 1:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &bРазящий клинок %{_current_bane}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 160"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sweeping edge 1
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &bРазящий клинок I" to player
+                        send "&8[&6⚔&8] &7Списано: &a160 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a160 монет&c." to player
+
+        # Разящий клинок II
+        else if event-slot is 10:
+            if money of player >= 400:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_bane} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sweeping edge":
+                            set {_current_bane} to level of sweeping edge of {_tool}
+                    
+                    if {_current_bane} >= 2:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &1Разящий клинок %{_current_bane}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 400"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sweeping edge 2
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &1Разящий клинок II" to player
+                        send "&8[&6⚔&8] &7Списано: &a400 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a400 монет&c." to player
+
+        # Разящий клинок III
+        else if event-slot is 11:
+            if money of player >= 1000:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_bane} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "sweeping edge":
+                            set {_current_bane} to level of sweeping edge of {_tool}
+                    
+                    if {_current_bane} >= 3:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &dРазящий клинок %{_current_bane}%&c! Нельзя купить более слабое зачарование." to player
+                    else:
+                        execute console command "eco take %player% 1000"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with sweeping edge 3
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &dРазящий клинок III" to player
+                        send "&8[&6⚔&8] &7Списано: &a1000 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a1000 монет&c." to player
+
+        # Починка
+        else if event-slot is 13:
+            if money of player >= 5000:
+                set {_is_sword} to false
+                if player's tool is wooden sword:
+                    set {_is_sword} to true
+                if player's tool is stone sword:
+                    set {_is_sword} to true
+                if player's tool is iron sword:
+                    set {_is_sword} to true
+                if player's tool is diamond sword:
+                    set {_is_sword} to true
+                if player's tool is netherite sword:
+                    set {_is_sword} to true
+                
+                if {_is_sword} is true:
+                    set {_tool} to player's tool
+                    set {_current_mending} to 0
+                    if {_tool} is enchanted:
+                        if "%enchantments of {_tool}%" contains "mending":
+                            set {_current_mending} to 1
+                    
+                    if {_current_mending} >= 1:
+                        send "&8[&6⚔&8] &cНа вашем мече уже есть &bПочинка&c!" to player
+                    else:
+                        execute console command "eco take %player% 5000"
+                        set {_enchanted} to {_tool}
+                        enchant {_enchanted} with mending 1
+                        set player's tool to {_enchanted}
+                        send "&8[&6⚔&8] &aВаш меч зачарован: &bПочинка" to player
+                        send "&8[&6⚔&8] &7Списано: &a5000 монет" to player
+                else:
+                    send "&8[&6⚔&8] &cДержите меч в руке для зачарования!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a5000 монет&c." to player
+
+        # Еда и расходники
+        else if event-slot is 46: # Стейк
+            if {_gold} >= 9:
+                remove 9 gold nugget from player's inventory
+                give player 1 of cooked beef
+                send "&8[&6⚔&8] &aВы купили &cСтейк &aза &e9 золотых самородков&a!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно золотых самородков! Нужно &e9&c." to player
+
+        else if event-slot is 47: # Золотое яблоко за монеты
+            if money of player >= 100:
+                execute console command "eco take %player% 100"
+                give player 1 of golden apple
+                send "&8[&6⚔&8] &aВы купили &6Золотое яблоко &aза &a100 монет&a!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a100 монет&c." to player
+
+        else if event-slot is 48: # Зелье силы
+            if money of player >= 112:
+                execute console command "eco take %player% 112"
+                give player 1 of potion of strength
+                send "&8[&6⚔&8] &aВы купили &4Зелье силы &aза &a112 монет&a!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно денег! Нужно &a112 монет&c." to player
+
+        # Обмен валюты
+        else if event-slot is 50:
+            if {_gold} >= 9:
+                remove 9 gold nugget from player's inventory
+                give player 1 of gold ingot
+                send "&8[&6⚔&8] &aВы купили &61 золотой слиток &aза &e9 золотых самородков&a!" to player
+            else:
+                send "&8[&6⚔&8] &cНедостаточно золотых самородков! Нужно &e9&c." to player
+
