@@ -1,0 +1,71 @@
+import:
+    org.bukkit.event.player.AsyncPlayerChatEvent
+
+# --- СИСТЕМА ПОКУПКИ ---
+command /buykeys_internal <player> <string> <number> <number>:
+    executable by: console
+    trigger:
+        set {_p} to arg-1
+        set {_type} to arg-2
+        set {_amount} to arg-3
+        set {_price} to arg-4
+        set {_total} to ({_price} * {_amount})
+        
+        # Очистка баланса (удаление запятых и символов)
+        set {_raw_bal} to "%{_p}'s balance%"
+        replace all "," and "¥" and "$" and " " with "" in {_raw_bal}
+        set {_split::*} to {_raw_bal} split at "."
+        set {_final_bal} to {_split::1} parsed as number
+        
+        if {_final_bal} >= {_total}:
+            remove {_total} from {_p}'s balance
+            execute console command "ac:ac key give %{_p}% %{_type}% %{_amount}%"
+            
+            # Уведомление
+            send action bar "&fТовар получен: &a&l%{_amount}% шт. &8(⛃ &e%{_total}%&8)" to {_p}
+            play sound "entity.player.levelup" with volume 0.4 and pitch 2 at {_p}
+            play sound "block.amethyst_block.break" with volume 1 and pitch 1 at {_p}
+        else:
+            send action bar "&c&l✕ &fНедостаточно средств! &7(Нужно: &a¥%{_total}%&7)" to {_p}
+            play sound "block.note_block.bass" at {_p}
+
+# --- ВВОД КОЛИЧЕСТВА ---
+command /keyinput <string> <number>:
+    executable by: players
+    trigger:
+        set {key_buy_type::%player's uuid%} to arg-1
+        set {key_buy_price::%player's uuid%} to arg-2
+        set {key_input_mode::%player's uuid%} to true
+        close player's inventory
+        send "" to player
+        send "  &b&lКЛЮЧИ &8» &fВведите &eколичество &fв чат" to player
+        send "  &7(Напишите &c'отмена' &7для выхода)" to player
+        send "" to player
+        play sound "block.enchantment_table.use" with volume 0.5 and pitch 1.5 at player
+
+# --- ПЕРЕХВАТ ЧАТА ---
+on AsyncPlayerChatEvent:
+    set {_p} to event.getPlayer()
+    set {_uuid} to {_p}.getUniqueId().toString()
+    
+    if {key_input_mode::%{_uuid}%} is true:
+        event.setCancelled(true) 
+        set {_msg} to event.getMessage()
+        delete {key_input_mode::%{_uuid}%}
+        
+        wait 1 tick
+        if {_msg} contains "отмена" or "cancel":
+            send "&8[&c✕&8] &fПокупка отменена." to {_p}
+            stop
+            
+        set {_amt} to {_msg} parsed as integer
+        if {_amt} is set:
+            if {_amt} > 0:
+                execute console command "buykeys_internal %{_p}% %{key_buy_type::%{_uuid}%}% %{_amt}% %{key_buy_price::%{_uuid}%}%"
+            else:
+                send "&8[&c✕&8] &fВведите число больше 0." to {_p}
+        else:
+            send "&8[&c✕&8] &e%{_msg}% &f— не число." to {_p}
+        
+        delete {key_buy_type::%{_uuid}%}
+        delete {key_buy_price::%{_uuid}%}
